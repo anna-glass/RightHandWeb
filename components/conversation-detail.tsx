@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { User, Bot, Search } from "lucide-react"
+import { User, Bot, Search, Send } from "lucide-react"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -11,11 +11,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Conversation } from "@/components/conversations-table"
-import { useMessages, useAddresses } from "@/lib/supabase/hooks"
+import { useMessages, useAddresses, createMessage } from "@/lib/supabase/hooks"
 
 interface ConversationDetailProps {
   conversation: Conversation
@@ -27,11 +28,22 @@ function formatTime(dateString: string): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
+type Message = {
+  id: string
+  conversation_id: string | null
+  sender: 'user' | 'assistant' | null
+  content: string
+  created_at: string
+}
+
 export function ConversationDetail({ conversation, onBack }: ConversationDetailProps) {
   const { messages, loading, error } = useMessages(conversation.id)
   const { addresses, loading: addressesLoading } = useAddresses(conversation.user_id || null)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const [memorySearch, setMemorySearch] = React.useState("")
+  const [newMessage, setNewMessage] = React.useState("")
+  const [sending, setSending] = React.useState(false)
+  const [optimisticMessages, setOptimisticMessages] = React.useState<Message[]>([])
 
   const memberName = conversation.profile
     ? [conversation.profile.first_name, conversation.profile.last_name].filter(Boolean).join(' ') || 'User'
@@ -53,6 +65,52 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
   const [notesText, setNotesText] = React.useState("")
   const [conversationNotesText, setConversationNotesText] = React.useState("")
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || sending) return
+
+    const messageContent = newMessage.trim()
+    const optimisticId = `optimistic-${Date.now()}`
+
+    // Create optimistic message
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      conversation_id: conversation.id,
+      sender: 'assistant',
+      content: messageContent,
+      created_at: new Date().toISOString()
+    }
+
+    try {
+      setSending(true)
+      setNewMessage("")
+
+      // Add optimistic message immediately
+      setOptimisticMessages(prev => [...prev, optimisticMessage])
+
+      await createMessage({
+        conversation_id: conversation.id,
+        sender: 'assistant',
+        content: messageContent
+      })
+    } catch (err) {
+      console.error('Error sending message:', err)
+      alert('Failed to send message. Please try again.')
+      // Remove the optimistic message on error
+      setOptimisticMessages(prev => prev.filter(m => m.id !== optimisticId))
+      // Restore the message text
+      setNewMessage(messageContent)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
   const filteredMemoriesText = React.useMemo(() => {
     if (!memorySearch.trim()) return memoriesText
     const searchLower = memorySearch.toLowerCase()
@@ -62,9 +120,24 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
     ).join('\n')
   }, [memoriesText, memorySearch])
 
+  // Clean up optimistic messages when real messages arrive
+  React.useEffect(() => {
+    if (optimisticMessages.length > 0 && messages.length > 0) {
+      const latestRealMessage = messages[messages.length - 1]
+      setOptimisticMessages(prev =>
+        prev.filter(opt => opt.content !== latestRealMessage.content)
+      )
+    }
+  }, [messages, optimisticMessages.length])
+
+  // Combine real and optimistic messages
+  const displayMessages = React.useMemo(() => {
+    return [...messages, ...optimisticMessages]
+  }, [messages, optimisticMessages])
+
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [displayMessages])
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-6rem)]">
@@ -101,13 +174,13 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
                 <div className="text-center py-8">
                   <p className={cn(typography.body, "text-destructive")}>Error loading messages: {error.message}</p>
                 </div>
-              ) : messages.length === 0 ? (
+              ) : displayMessages.length === 0 ? (
                 <div className="text-center py-8">
                   <p className={cn(typography.body, "text-muted-foreground")}>No messages yet</p>
                 </div>
               ) : (
                 <>
-                  {messages.map((message) => (
+                  {displayMessages.map((message) => (
                     <div
                       key={message.id}
                       className={cn(
@@ -170,15 +243,26 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
             </div>
           </div>
 
-          {/* Input Area - Optional placeholder */}
+          {/* Input Area */}
           <div className="border-t pt-4 pb-2">
             <div className="max-w-3xl mx-auto px-4">
-              <div className={cn(
-                "w-full p-3 rounded-lg border bg-muted/50",
-                typography.bodySmall,
-                "text-muted-foreground"
-              )}>
-                Conversation view (read-only)
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="Type a message as Right Hand..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={sending}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sending}
+                  size="icon"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
