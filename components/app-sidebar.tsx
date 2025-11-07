@@ -25,10 +25,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarProps) {
   return (
-    <Sidebar collapsible="none" className="bg-muted" {...props}>
+    <Sidebar collapsible="none" className="text-white m-4 mb-4 rounded-lg h-[calc(100vh-2rem)]" {...props}>
       <SidebarHeader>
         <div className="px-2 py-2">
-          <h2 className={cn(typography.h4)}>Right Hand</h2>
+          <img src="/righthand.png" alt="Right Hand" className="h-8 w-auto" />
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -39,6 +39,7 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
                 <SidebarMenuButton
                   isActive={activeView === "members"}
                   onClick={() => onViewChange("members")}
+                  className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
                 >
                   <Users />
                   <span>Members</span>
@@ -48,6 +49,7 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
                 <SidebarMenuButton
                   isActive={activeView === "conversations"}
                   onClick={() => onViewChange("conversations")}
+                  className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
                 >
                   <MessageSquare />
                   <span>Conversations</span>

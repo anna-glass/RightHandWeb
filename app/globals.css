@@ -118,9 +118,18 @@
   }
   html,
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     overscroll-behavior: none;
     height: 100%;
     overflow: hidden;
+  }
+
+  body {
+    /* Background image for entire app */
+    background-image: url('/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
   }
 }
