@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { User, Bot, Search, Send } from "lucide-react"
+import { useRouter } from "next/navigation"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -16,11 +17,14 @@ import { Separator } from "@/components/ui/separator"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Conversation } from "@/components/conversations-table"
+import type { Member } from "@/components/members-table"
 import { useMessages, useAddresses, createMessage } from "@/lib/supabase/hooks"
 
 interface ConversationDetailProps {
   conversation: Conversation
   onBack: () => void
+  fromMember?: Member | null
+  onBackToMember?: () => void
 }
 
 function formatTime(dateString: string | null): string {
@@ -37,7 +41,8 @@ type Message = {
   created_at: string
 }
 
-export function ConversationDetail({ conversation, onBack }: ConversationDetailProps) {
+export function ConversationDetail({ conversation, onBack, fromMember, onBackToMember }: ConversationDetailProps) {
+  const router = useRouter()
   const { messages, loading, error } = useMessages(conversation.id)
   const { addresses, loading: addressesLoading } = useAddresses(conversation.user_id || null)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
@@ -112,6 +117,37 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
     }
   }
 
+  const handleViewProfile = () => {
+    if (conversation.user_id) {
+      // Build the navigation path
+      const searchParams = new URLSearchParams(window.location.search)
+      const currentPath = searchParams.get('path') || ''
+
+      // Parse current path
+      const pathParts = currentPath ? currentPath.split(',') : []
+
+      // Check if 'member' type already exists in path
+      const memberIndex = pathParts.findIndex(p => p.startsWith('member-'))
+
+      let newPath: string[]
+      if (memberIndex >= 0) {
+        // Pop off everything from the first member onward (inclusive)
+        newPath = pathParts.slice(0, memberIndex)
+      } else {
+        // No member in path, add current conversation to path
+        const convId = `conv-${conversation.id}`
+        newPath = [...pathParts]
+        if (!newPath.includes(convId)) {
+          newPath.push(convId)
+        }
+      }
+
+      // Navigate to member with new path
+      const pathParam = newPath.length > 0 ? `path=${newPath.join(',')}` : ''
+      router.push(`/members/${conversation.user_id}${pathParam ? '?' + pathParam : ''}`)
+    }
+  }
+
   const filteredMemoriesText = React.useMemo(() => {
     if (!memorySearch.trim()) return memoriesText
     const searchLower = memorySearch.toLowerCase()
@@ -145,18 +181,46 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink
-              onClick={onBack}
-              className="cursor-pointer"
-            >
-              Conversations
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{conversation.title || 'Untitled'}</BreadcrumbPage>
-          </BreadcrumbItem>
+          {fromMember ? (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBack}
+                  className="cursor-pointer"
+                >
+                  Members
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBackToMember}
+                  className="cursor-pointer"
+                >
+                  {[fromMember.first_name, fromMember.last_name].filter(Boolean).join(' ') || 'User'}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{conversation.title || 'Untitled'}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBack}
+                  className="cursor-pointer"
+                >
+                  Conversations
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{conversation.title || 'Untitled'}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
         </BreadcrumbList>
       </Breadcrumb>
 
@@ -295,11 +359,21 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
                 alt={memberName}
                 className="size-16 bg-background rounded-lg flex-shrink-0"
               />
-              <div className="flex-1 min-w-0">
-                <h3 className={cn(typography.bodySmall, "font-medium")}>{memberName}</h3>
-                <p className={cn(typography.bodySmall, "text-muted-foreground truncate")}>
-                  {conversation.profile?.email}
-                </p>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  <h3 className={cn(typography.bodySmall, "font-medium")}>{memberName}</h3>
+                  <p className={cn(typography.bodySmall, "text-muted-foreground truncate")}>
+                    {conversation.profile?.email}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleViewProfile}
+                  className="w-full"
+                >
+                  See Profile
+                </Button>
               </div>
             </div>
 

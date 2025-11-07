@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Search } from "lucide-react"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -22,11 +23,14 @@ import {
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Member } from "./members-table"
+import type { Conversation } from "./conversations-table"
 import { useConversations, useAddresses } from "@/lib/supabase/hooks"
 
 interface MemberDetailProps {
   member: Member
   onBack: () => void
+  fromConversation?: Conversation | null
+  onBackToConversation?: () => void
 }
 
 function formatRelativeTime(dateString: string | null): string {
@@ -47,7 +51,8 @@ function formatRelativeTime(dateString: string | null): string {
   return date.toLocaleDateString()
 }
 
-export function MemberDetail({ member, onBack }: MemberDetailProps) {
+export function MemberDetail({ member, onBack, fromConversation, onBackToConversation }: MemberDetailProps) {
+  const router = useRouter()
   const [memorySearch, setMemorySearch] = React.useState("")
 
   // Fetch conversations for this member
@@ -92,23 +97,52 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink
-              onClick={onBack}
-              className="cursor-pointer"
-            >
-              Members
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{memberName}</BreadcrumbPage>
-          </BreadcrumbItem>
+          {fromConversation ? (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBack}
+                  className="cursor-pointer"
+                >
+                  Conversations
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBackToConversation}
+                  className="cursor-pointer"
+                >
+                  {fromConversation.title || 'Untitled'}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{memberName}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : (
+            <>
+              <BreadcrumbItem>
+                <BreadcrumbLink
+                  onClick={onBack}
+                  className="cursor-pointer"
+                >
+                  Members
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{memberName}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
         </BreadcrumbList>
       </Breadcrumb>
 
       {/* Profile Card */}
       <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-4")}>Profile</h4>
         <div className="flex gap-6">
           <img
             src={profilePicture}
@@ -128,7 +162,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
                 </div>
                 <div className="pt-2">
                   <div>
-                    <p className={cn(typography.caption, "text-muted-foreground")}>Joined</p>
+                    <p className={cn(typography.label, "text-muted-foreground")}>Joined</p>
                     <p className={cn(typography.body)}>{joinedDate}</p>
                   </div>
                 </div>
@@ -160,6 +194,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
       {/* Conversations */}
       <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Conversations</h4>
         {conversationsLoading ? (
           <p className={cn(typography.body, "text-muted-foreground text-center p-4")}>Loading conversations...</p>
         ) : memberConversations.length === 0 ? (
@@ -167,22 +202,57 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-gray-300">
+              <TableRow>
                 <TableHead className={cn(typography.tableHeader)}>Conversation</TableHead>
                 <TableHead className={cn(typography.tableHeader)}>Last Talked</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {memberConversations.map((conversation) => (
-                <TableRow key={conversation.id} className="border-b border-gray-300">
-                  <TableCell className={cn(typography.tableCell)}>
-                    {conversation.title || 'Untitled'}
-                  </TableCell>
-                  <TableCell className={cn(typography.tableCell)}>
-                    {formatRelativeTime(conversation.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {memberConversations.map((conversation) => {
+                const handleConversationClick = () => {
+                  // Build the navigation path
+                  const searchParams = new URLSearchParams(window.location.search)
+                  const currentPath = searchParams.get('path') || ''
+
+                  // Parse current path
+                  const pathParts = currentPath ? currentPath.split(',') : []
+
+                  // Check if 'conv' type already exists in path
+                  const convIndex = pathParts.findIndex(p => p.startsWith('conv-'))
+
+                  let newPath: string[]
+                  if (convIndex >= 0) {
+                    // Pop off everything from the first conversation onward (inclusive)
+                    newPath = pathParts.slice(0, convIndex)
+                  } else {
+                    // No conversation in path, add current member to path
+                    const memberId = `member-${member.id}`
+                    newPath = [...pathParts]
+                    if (!newPath.includes(memberId)) {
+                      newPath.push(memberId)
+                    }
+                  }
+
+                  // Navigate to conversation with new path
+                  const pathParam = newPath.length > 0 ? `path=${newPath.join(',')}` : ''
+                  router.push(`/conversations/${conversation.id}${pathParam ? '?' + pathParam : ''}`)
+                }
+
+                return (
+                  <TableRow
+                    key={conversation.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={handleConversationClick}
+                  >
+                    <TableCell className={cn(typography.tableCell)}>
+                      {conversation.title || 'Untitled'}
+                    </TableCell>
+                    <TableCell className={cn(typography.tableCell)}>
+                      {formatRelativeTime(conversation.created_at)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         )}
@@ -190,6 +260,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
       {/* Memories */}
       <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Memories</h4>
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -197,7 +268,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
             placeholder="Search memories..."
             value={memorySearch}
             onChange={(e) => setMemorySearch(e.target.value)}
-            className="pl-9 border-gray-300"
+            className="pl-9"
           />
         </div>
         <textarea
@@ -210,7 +281,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
           placeholder="Add memories here..."
           className={cn(
             typography.body,
-            "w-full min-h-[200px] p-3 rounded-lg resize-y",
+            "w-full min-h-[200px] p-3 rounded-lg resize-y border",
             "focus:outline-none",
             memorySearch.trim() && "bg-muted/50"
           )}
@@ -220,13 +291,14 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
       {/* Notes */}
       <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Notes</h4>
         <textarea
           value={notesText}
           onChange={(e) => setNotesText(e.target.value)}
           placeholder="Add notes here..."
           className={cn(
             typography.body,
-            "w-full min-h-[200px] p-3 rounded-lg resize-y",
+            "w-full min-h-[200px] p-3 rounded-lg resize-y border",
             "focus:outline-none"
           )}
         />
