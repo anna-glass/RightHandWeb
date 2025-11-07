@@ -4,7 +4,7 @@ import { typography } from "@/lib/typography"
 
 interface PageLayoutProps {
   children: React.ReactNode
-  title: string
+  title?: string
   className?: string
 }
 
@@ -15,7 +15,7 @@ export function PageLayout({ children, title, className }: PageLayoutProps) {
         className={cn("bg-background rounded-lg p-6 flex-1 overflow-auto", className)}
         style={{ overscrollBehavior: 'contain' }}
       >
-        <h1 className={cn(typography.h3, "mb-6")}>{title}</h1>
+        {title && <h1 className={cn(typography.h3, "mb-6")}>{title}</h1>}
         {children}
       </div>
     </div>

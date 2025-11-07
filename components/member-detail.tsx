@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ArrowLeft, Search } from "lucide-react"
+import { Search } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Breadcrumb,
@@ -47,18 +46,21 @@ const getMemberConversations = (memberId: string) => [
   },
 ]
 
-const getMemberStats = (memberId: string) => ({
-  totalRequests: 42,
-  activeConversations: 3,
-  completedRequests: 39,
+const getMemberProfile = (memberId: string) => ({
+  profilePicture: `https://api.dicebear.com/7.x/avataaars/svg?seed=${memberId}`,
+  phone: "+1 (555) 123-4567",
+  tasksCompleted: 14,
+  tasksLimit: 20,
+  joinedDate: "January 15, 2024",
 })
 
 const getMemberNotes = (memberId: string) =>
   "Prefers morning meetings. Very detail-oriented."
 
 const getMemberAddressBook = (memberId: string) => [
-  { type: "Work", phone: "+1 (555) 123-4567", email: "work@example.com" },
-  { type: "Personal", phone: "+1 (555) 987-6543", email: "personal@example.com" },
+  { type: "Home", address: "123 Main Street, Apt 4B, New York, NY 10001" },
+  { type: "Office", address: "456 Park Avenue, Suite 2000, New York, NY 10022" },
+  { type: "Vacation Home", address: "789 Beach Road, Hamptons, NY 11968" },
 ]
 
 const getMemberMemories = (memberId: string) => [
@@ -77,7 +79,7 @@ const getMemberMemories = (memberId: string) => [
 export function MemberDetail({ member, onBack }: MemberDetailProps) {
   const [memorySearch, setMemorySearch] = React.useState("")
 
-  const stats = getMemberStats(member.id)
+  const profile = getMemberProfile(member.id)
   const conversations = getMemberConversations(member.id)
   const notes = getMemberNotes(member.id)
   const addressBook = getMemberAddressBook(member.id)
@@ -111,32 +113,47 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft />
-        </Button>
-        <div>
-          <h1 className={cn(typography.h2)}>{member.name}</h1>
-          <p className={cn(typography.bodySmall, "text-muted-foreground")}>
-            {member.role} • {member.email}
-          </p>
+      {/* Profile Card */}
+      <div className="bg-muted p-6 rounded-lg">
+        <div className="flex gap-6">
+          <img
+            src={profile.profilePicture}
+            alt={member.name}
+            className="size-32 rounded-full bg-background"
+          />
+          <div className="flex flex-col gap-4 flex-1">
+            <div>
+              <h2 className={cn(typography.h2)}>{member.name}</h2>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className={cn(typography.label, "text-muted-foreground w-20")}>Email</span>
+                <span className={cn(typography.body)}>{member.email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={cn(typography.label, "text-muted-foreground w-20")}>Phone</span>
+                <span className={cn(typography.body)}>{profile.phone}</span>
+              </div>
+            </div>
+            <div className="flex gap-8 pt-2">
+              <div>
+                <p className={cn(typography.caption, "text-muted-foreground")}>Usage</p>
+                <p className={cn(typography.body)}>
+                  {profile.tasksCompleted} / {profile.tasksLimit} tasks
+                </p>
+              </div>
+              <div>
+                <p className={cn(typography.caption, "text-muted-foreground")}>Joined</p>
+                <p className={cn(typography.body)}>{profile.joinedDate}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="flex gap-8">
-        <div>
-          <p className={cn(typography.caption)}>Total Requests</p>
-          <p className={cn(typography.h3)}>{stats.totalRequests}</p>
-        </div>
-        <div>
-          <p className={cn(typography.caption)}>Active Conversations</p>
-          <p className={cn(typography.h3)}>{stats.activeConversations}</p>
-        </div>
-        <div>
-          <p className={cn(typography.caption)}>Completed</p>
-          <p className={cn(typography.h3)}>{stats.completedRequests}</p>
+        {/* Notes */}
+        <div className="mt-6 pt-6 border-t">
+          <h3 className={cn(typography.h5, "mb-2")}>Notes</h3>
+          <p className={cn(typography.body)}>{notes}</p>
         </div>
       </div>
 
@@ -173,14 +190,6 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
         </Table>
       </div>
 
-      {/* Notes */}
-      <div>
-        <h2 className={cn(typography.h4, "mb-2")}>Notes</h2>
-        <div className="bg-muted p-4 rounded-md">
-          <p className={cn(typography.body)}>{notes}</p>
-        </div>
-      </div>
-
       {/* Address Book */}
       <div>
         <h2 className={cn(typography.h4, "mb-4")}>Address Book</h2>
@@ -188,8 +197,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
           <TableHeader>
             <TableRow>
               <TableHead className={cn(typography.tableHeader)}>Type</TableHead>
-              <TableHead className={cn(typography.tableHeader)}>Phone</TableHead>
-              <TableHead className={cn(typography.tableHeader)}>Email</TableHead>
+              <TableHead className={cn(typography.tableHeader)}>Address</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,10 +207,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
                   {contact.type}
                 </TableCell>
                 <TableCell className={cn(typography.tableCell)}>
-                  {contact.phone}
-                </TableCell>
-                <TableCell className={cn(typography.tableCell)}>
-                  {contact.email}
+                  {contact.address}
                 </TableCell>
               </TableRow>
             ))}

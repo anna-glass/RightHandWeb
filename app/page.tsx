@@ -37,8 +37,8 @@ export default function Home() {
   }
 
   const getHeaderTitle = () => {
-    if (selectedMember) return selectedMember.name
-    if (selectedConversation) return selectedConversation.subject
+    // Don't show title for detail pages (they have breadcrumbs)
+    if (selectedMember || selectedConversation) return undefined
     return activeView === "members" ? "Members" : "Conversations"
   }
 
