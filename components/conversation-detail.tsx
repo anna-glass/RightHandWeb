@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { User, Bot, Search, Send } from "lucide-react"
+import { User, Bot, Search, Send, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Breadcrumb,
@@ -367,12 +367,13 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
                   </p>
                 </div>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={handleViewProfile}
-                  className="w-full"
+                  className="w-full justify-start gap-2 text-xs h-8 px-0"
                 >
                   See Profile
+                  <ChevronRight className="h-3 w-3" />
                 </Button>
               </div>
             </div>
