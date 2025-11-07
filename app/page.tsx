@@ -45,7 +45,7 @@ export default function Home() {
   return (
     <SidebarProvider>
       <AppSidebar activeView={activeView} onViewChange={handleViewChange} />
-      <SidebarInset>
+      <SidebarInset className="h-screen">
         <PageLayout title={getHeaderTitle()}>
           {selectedMember ? (
             <MemberDetail member={selectedMember} onBack={handleBackToMembers} />

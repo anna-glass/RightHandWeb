@@ -10,8 +10,11 @@ interface PageLayoutProps {
 
 export function PageLayout({ children, title, className }: PageLayoutProps) {
   return (
-    <div className="p-4 bg-muted flex-1 flex flex-col">
-      <div className={cn("bg-background rounded-lg p-6 flex-1", className)}>
+    <div className="p-4 bg-muted h-full flex flex-col">
+      <div
+        className={cn("bg-background rounded-lg p-6 flex-1 overflow-auto", className)}
+        style={{ overscrollBehavior: 'contain' }}
+      >
         <h1 className={cn(typography.h3, "mb-6")}>{title}</h1>
         {children}
       </div>
