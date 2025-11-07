@@ -1,11 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { Users, MessageSquare } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { LogOut } from "lucide-react"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/browser"
 
 export type SidebarView = "members" | "conversations"
 
@@ -24,6 +27,15 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarProps) {
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
+
   return (
     <Sidebar collapsible="none" className="text-white m-4 mb-4 rounded-lg h-[calc(100vh-2rem)]" {...props}>
       <SidebarHeader>
@@ -41,7 +53,6 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
                   onClick={() => onViewChange("members")}
                   className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
                 >
-                  <Users />
                   <span>Members</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -51,7 +62,6 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
                   onClick={() => onViewChange("conversations")}
                   className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
                 >
-                  <MessageSquare />
                   <span>Conversations</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -59,6 +69,19 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleLogout}
+              className="hover:bg-white/10 hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   )
 }
