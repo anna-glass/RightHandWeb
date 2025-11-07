@@ -37,9 +37,8 @@ export default function Home() {
   }
 
   const getHeaderTitle = () => {
-    // Don't show title for detail pages (they have breadcrumbs)
-    if (selectedMember || selectedConversation) return undefined
-    return activeView === "members" ? "Members" : "Conversations"
+    // Don't show title - tab selection indicates current view
+    return undefined
   }
 
   return (

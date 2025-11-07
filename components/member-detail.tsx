@@ -54,13 +54,9 @@ const getMemberProfile = (memberId: string) => ({
   joinedDate: "January 15, 2024",
 })
 
-const getMemberNotes = (memberId: string) =>
-  "Prefers morning meetings. Very detail-oriented."
-
 const getMemberAddressBook = (memberId: string) => [
   { type: "Home", address: "123 Main Street, Apt 4B, New York, NY 10001" },
   { type: "Office", address: "456 Park Avenue, Suite 2000, New York, NY 10022" },
-  { type: "Vacation Home", address: "789 Beach Road, Hamptons, NY 11968" },
 ]
 
 const getMemberMemories = (memberId: string) => [
@@ -81,17 +77,21 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
   const profile = getMemberProfile(member.id)
   const conversations = getMemberConversations(member.id)
-  const notes = getMemberNotes(member.id)
   const addressBook = getMemberAddressBook(member.id)
   const memories = getMemberMemories(member.id)
 
-  const filteredMemories = React.useMemo(() => {
-    if (!memorySearch.trim()) return memories
+  // Initialize memories text from array only once
+  const [memoriesText, setMemoriesText] = React.useState(() => memories.join('\n'))
+  const [notesText, setNotesText] = React.useState("")
+
+  const filteredMemoriesText = React.useMemo(() => {
+    if (!memorySearch.trim()) return memoriesText
     const searchLower = memorySearch.toLowerCase()
-    return memories.filter(memory =>
-      memory.toLowerCase().includes(searchLower)
-    )
-  }, [memories, memorySearch])
+    const lines = memoriesText.split('\n')
+    return lines.filter(line =>
+      line.toLowerCase().includes(searchLower)
+    ).join('\n')
+  }, [memoriesText, memorySearch])
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,95 +119,78 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
           <img
             src={profile.profilePicture}
             alt={member.name}
-            className="size-32 rounded-full bg-background"
+            className="size-32 bg-background"
           />
           <div className="flex flex-col gap-4 flex-1">
-            <div>
-              <h2 className={cn(typography.h2)}>{member.name}</h2>
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span className={cn(typography.label, "text-muted-foreground w-20")}>Email</span>
-                <span className={cn(typography.body)}>{member.email}</span>
+            {/* Profile Content - Left and Right */}
+            <div className="flex gap-8">
+              {/* Left side - Email, Phone, Usage, Joined */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(typography.label, "text-muted-foreground w-20")}>Email</span>
+                    <span className={cn(typography.body)}>{member.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(typography.label, "text-muted-foreground w-20")}>Phone</span>
+                    <span className={cn(typography.body)}>{profile.phone}</span>
+                  </div>
+                </div>
+                <div className="flex gap-8 pt-2">
+                  <div>
+                    <p className={cn(typography.caption, "text-muted-foreground")}>Usage</p>
+                    <p className={cn(typography.body)}>
+                      {profile.tasksCompleted} / {profile.tasksLimit} tasks
+                    </p>
+                  </div>
+                  <div>
+                    <p className={cn(typography.caption, "text-muted-foreground")}>Joined</p>
+                    <p className={cn(typography.body)}>{profile.joinedDate}</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={cn(typography.label, "text-muted-foreground w-20")}>Phone</span>
-                <span className={cn(typography.body)}>{profile.phone}</span>
-              </div>
-            </div>
-            <div className="flex gap-8 pt-2">
-              <div>
-                <p className={cn(typography.caption, "text-muted-foreground")}>Usage</p>
-                <p className={cn(typography.body)}>
-                  {profile.tasksCompleted} / {profile.tasksLimit} tasks
-                </p>
-              </div>
-              <div>
-                <p className={cn(typography.caption, "text-muted-foreground")}>Joined</p>
-                <p className={cn(typography.body)}>{profile.joinedDate}</p>
+
+              {/* Right side - Address Book */}
+              <div className="flex flex-col gap-2 min-w-[300px]">
+                {addressBook.map((contact, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <span className={cn(typography.label, "text-muted-foreground w-24 shrink-0")}>{contact.type}</span>
+                    <span className={cn(typography.body)}>{contact.address}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-
-        {/* Notes */}
-        <div className="mt-6 pt-6 border-t">
-          <h3 className={cn(typography.h5, "mb-2")}>Notes</h3>
-          <p className={cn(typography.body)}>{notes}</p>
-        </div>
       </div>
 
       {/* Conversations */}
-      <div>
-        <h2 className={cn(typography.h4, "mb-4")}>Conversations</h2>
+      <div className="bg-muted p-6 rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead className={cn(typography.tableHeader)}>Subject</TableHead>
+            <TableRow className="border-b border-gray-300">
+              <TableHead className={cn(typography.tableHeader)}>Conversation</TableHead>
               <TableHead className={cn(typography.tableHeader)}>Last Message</TableHead>
-              <TableHead className={cn(typography.tableHeader)}>Time</TableHead>
-              <TableHead className={cn(typography.tableHeader)}>Status</TableHead>
+              <TableHead className={cn(typography.tableHeader)}>Last Talked</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {conversations.map((conversation) => (
-              <TableRow key={conversation.id}>
+              <TableRow key={conversation.id} className="border-b border-gray-300">
                 <TableCell className={cn(typography.tableCell)}>
-                  {conversation.subject}
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "size-2 rounded-full shrink-0",
+                      conversation.status === "Active" ? "bg-green-500" : "bg-gray-400"
+                    )} />
+                    {conversation.subject}
+                  </div>
                 </TableCell>
                 <TableCell className={cn(typography.tableCell)}>
                   {conversation.lastMessage}
                 </TableCell>
                 <TableCell className={cn(typography.tableCell)}>
                   {conversation.timestamp}
-                </TableCell>
-                <TableCell className={cn(typography.tableCell)}>
-                  {conversation.status}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Address Book */}
-      <div>
-        <h2 className={cn(typography.h4, "mb-4")}>Address Book</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className={cn(typography.tableHeader)}>Type</TableHead>
-              <TableHead className={cn(typography.tableHeader)}>Address</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {addressBook.map((contact, index) => (
-              <TableRow key={index}>
-                <TableCell className={cn(typography.tableCell)}>
-                  {contact.type}
-                </TableCell>
-                <TableCell className={cn(typography.tableCell)}>
-                  {contact.address}
                 </TableCell>
               </TableRow>
             ))}
@@ -216,8 +199,7 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
       </div>
 
       {/* Memories */}
-      <div>
-        <h2 className={cn(typography.h4, "mb-4")}>Memories</h2>
+      <div className="bg-muted p-6 rounded-lg">
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -225,25 +207,39 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
             placeholder="Search memories..."
             value={memorySearch}
             onChange={(e) => setMemorySearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 border-gray-300"
           />
         </div>
-        <div className="space-y-2">
-          {filteredMemories.length > 0 ? (
-            filteredMemories.map((memory, index) => (
-              <div
-                key={index}
-                className="bg-muted p-3 rounded-md"
-              >
-                <p className={cn(typography.body)}>{memory}</p>
-              </div>
-            ))
-          ) : (
-            <p className={cn(typography.bodySmall, "text-muted-foreground")}>
-              No memories found matching "{memorySearch}"
-            </p>
+        <textarea
+          value={memorySearch.trim() ? filteredMemoriesText : memoriesText}
+          onChange={(e) => {
+            if (!memorySearch.trim()) {
+              setMemoriesText(e.target.value)
+            }
+          }}
+          placeholder="Add memories here..."
+          className={cn(
+            typography.body,
+            "w-full min-h-[200px] p-3 rounded-lg resize-y",
+            "focus:outline-none",
+            memorySearch.trim() && "bg-muted/50"
           )}
-        </div>
+          disabled={memorySearch.trim().length > 0}
+        />
+      </div>
+
+      {/* Notes */}
+      <div className="bg-muted p-6 rounded-lg">
+        <textarea
+          value={notesText}
+          onChange={(e) => setNotesText(e.target.value)}
+          placeholder="Add notes here..."
+          className={cn(
+            typography.body,
+            "w-full min-h-[200px] p-3 rounded-lg resize-y",
+            "focus:outline-none"
+          )}
+        />
       </div>
     </div>
   )

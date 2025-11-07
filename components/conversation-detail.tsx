@@ -1,8 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { ArrowLeft, User, Bot } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { User, Bot } from "lucide-react"
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Conversation } from "@/components/conversations-table"
@@ -68,22 +75,27 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
   }, [messages])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      {/* Header */}
-      <div className="flex items-center gap-4 pb-4 border-b">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft />
-        </Button>
-        <div className="flex-1">
-          <h1 className={cn(typography.h4)}>{conversation.subject}</h1>
-          <p className={cn(typography.bodySmall, "text-muted-foreground")}>
-            {conversation.member} • {conversation.status}
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink
+              onClick={onBack}
+              className="cursor-pointer"
+            >
+              Conversations
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{conversation.subject}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Messages Container - Claude-inspired */}
-      <div className="flex-1 overflow-y-auto py-6">
+      <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto space-y-6 px-4">
           {messages.map((message) => (
             <div
@@ -133,7 +145,7 @@ export function ConversationDetail({ conversation, onBack }: ConversationDetailP
       </div>
 
       {/* Input Area - Optional placeholder */}
-      <div className="border-t pt-4">
+      <div className="border-t pt-4 pb-2">
         <div className="max-w-3xl mx-auto px-4">
           <div className={cn(
             "w-full p-3 rounded-lg border bg-muted/50",
