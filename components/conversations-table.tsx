@@ -17,7 +17,7 @@ type ConversationRow = Database['public']['Tables']['conversations']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
 
 export interface Conversation extends ConversationRow {
-  profile?: ProfileRow
+  profile: ProfileRow | null
 }
 
 interface ConversationsTableProps {

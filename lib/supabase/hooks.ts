@@ -67,13 +67,15 @@ export function useProfile(id: string | null) {
       return
     }
 
+    const profileId = id // Capture the non-null id
+
     async function fetchProfile() {
       try {
         setLoading(true)
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', id)
+          .eq('id', profileId)
           .single()
 
         if (error) throw error
@@ -93,7 +95,7 @@ export function useProfile(id: string | null) {
 
 // Conversations Hooks
 export function useConversations() {
-  const [conversations, setConversations] = useState<(Conversation & { profile?: Profile })[]>([])
+  const [conversations, setConversations] = useState<(Conversation & { profile: Profile | null })[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -141,7 +143,7 @@ export function useConversations() {
 }
 
 export function useConversation(id: string | null) {
-  const [conversation, setConversation] = useState<(Conversation & { profile?: Profile }) | null>(null)
+  const [conversation, setConversation] = useState<(Conversation & { profile: Profile | null }) | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -152,6 +154,8 @@ export function useConversation(id: string | null) {
       return
     }
 
+    const conversationId = id // Capture the non-null id
+
     async function fetchConversation() {
       try {
         setLoading(true)
@@ -161,7 +165,7 @@ export function useConversation(id: string | null) {
             *,
             profile:profiles!user_id(*)
           `)
-          .eq('id', id)
+          .eq('id', conversationId)
           .single()
 
         if (error) throw error
@@ -192,13 +196,15 @@ export function useMessages(conversationId: string | null) {
       return
     }
 
+    const convId = conversationId // Capture the non-null id
+
     async function fetchMessages() {
       try {
         setLoading(true)
         const { data, error } = await supabase
           .from('messages')
           .select('*')
-          .eq('conversation_id', conversationId)
+          .eq('conversation_id', convId)
           .order('created_at', { ascending: true })
 
         if (error) throw error
@@ -214,14 +220,14 @@ export function useMessages(conversationId: string | null) {
 
     // Subscribe to real-time changes
     const channel = supabase
-      .channel(`messages-${conversationId}`)
+      .channel(`messages-${convId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
+          filter: `conversation_id=eq.${convId}`
         },
         () => {
           fetchMessages()
@@ -250,13 +256,15 @@ export function useAddresses(userId: string | null) {
       return
     }
 
+    const uid = userId // Capture the non-null id
+
     async function fetchAddresses() {
       try {
         setLoading(true)
         const { data, error } = await supabase
           .from('addresses')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', uid)
           .order('created_at', { ascending: false })
 
         if (error) throw error
@@ -272,14 +280,14 @@ export function useAddresses(userId: string | null) {
 
     // Subscribe to real-time changes
     const channel = supabase
-      .channel(`addresses-${userId}`)
+      .channel(`addresses-${uid}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'addresses',
-          filter: `user_id=eq.${userId}`
+          filter: `user_id=eq.${uid}`
         },
         () => {
           fetchAddresses()

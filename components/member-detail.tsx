@@ -62,7 +62,9 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
   // Profile info
   const profilePicture = member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.id}`
-  const joinedDate = new Date(member.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  const joinedDate = member.created_at
+    ? new Date(member.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'Unknown'
   const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'No Name'
 
   // Mock data for memories and notes (these would typically come from a separate table)

@@ -23,7 +23,8 @@ interface ConversationDetailProps {
   onBack: () => void
 }
 
-function formatTime(dateString: string): string {
+function formatTime(dateString: string | null): string {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
