@@ -11,8 +11,16 @@ import {
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 
+export interface Member {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: string
+}
+
 // Mock data - replace with actual data from your API
-const members = [
+const members: Member[] = [
   {
     id: "1",
     name: "Alice Johnson",
@@ -36,7 +44,11 @@ const members = [
   },
 ]
 
-export function MembersTable() {
+interface MembersTableProps {
+  onMemberClick?: (member: Member) => void
+}
+
+export function MembersTable({ onMemberClick }: MembersTableProps) {
   return (
     <div className="w-full">
       <Table>
@@ -50,7 +62,11 @@ export function MembersTable() {
         </TableHeader>
         <TableBody>
           {members.map((member) => (
-            <TableRow key={member.id}>
+            <TableRow
+              key={member.id}
+              onClick={() => onMemberClick?.(member)}
+              className={cn(onMemberClick && "cursor-pointer hover:bg-muted/50")}
+            >
               <TableCell className={cn(typography.tableCell)}>
                 {member.name}
               </TableCell>

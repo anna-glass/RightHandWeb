@@ -25,7 +25,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarProps) {
   return (
-    <Sidebar {...props}>
+    <Sidebar collapsible="none" className="bg-muted" {...props}>
       <SidebarHeader>
         <div className="px-2 py-2">
           <h2 className={cn(typography.h4)}>Right Hand</h2>

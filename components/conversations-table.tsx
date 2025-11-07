@@ -11,8 +11,17 @@ import {
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 
+export interface Conversation {
+  id: string
+  member: string
+  subject: string
+  lastMessage: string
+  timestamp: string
+  status: string
+}
+
 // Mock data - replace with actual data from your API
-const conversations = [
+const conversations: Conversation[] = [
   {
     id: "1",
     member: "Alice Johnson",
@@ -39,7 +48,11 @@ const conversations = [
   },
 ]
 
-export function ConversationsTable() {
+interface ConversationsTableProps {
+  onConversationClick?: (conversation: Conversation) => void
+}
+
+export function ConversationsTable({ onConversationClick }: ConversationsTableProps) {
   return (
     <div className="w-full">
       <Table>
@@ -54,7 +67,11 @@ export function ConversationsTable() {
         </TableHeader>
         <TableBody>
           {conversations.map((conversation) => (
-            <TableRow key={conversation.id}>
+            <TableRow
+              key={conversation.id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={() => onConversationClick?.(conversation)}
+            >
               <TableCell className={cn(typography.tableCell)}>
                 {conversation.member}
               </TableCell>
