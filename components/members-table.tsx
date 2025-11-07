@@ -10,45 +10,44 @@ import {
 } from "@/components/ui/table"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
+import { useProfiles } from "@/lib/supabase/hooks"
+import type { Database } from "@/lib/supabase/types"
 
-export interface Member {
-  id: string
-  name: string
-  email: string
-  role: string
-  status: string
-}
-
-// Mock data - replace with actual data from your API
-const members: Member[] = [
-  {
-    id: "1",
-    name: "Alice Johnson",
-    email: "alice@example.com",
-    role: "Executive",
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Bob Smith",
-    email: "bob@example.com",
-    role: "Executive",
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Carol Williams",
-    email: "carol@example.com",
-    role: "Executive",
-    status: "Away",
-  },
-]
+export type Member = Database['public']['Tables']['profiles']['Row']
 
 interface MembersTableProps {
   onMemberClick?: (member: Member) => void
 }
 
 export function MembersTable({ onMemberClick }: MembersTableProps) {
+  const { profiles, loading, error } = useProfiles()
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center p-8">
+        <p className={cn(typography.body, "text-muted-foreground")}>Loading members...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full flex items-center justify-center p-8">
+        <p className={cn(typography.body, "text-destructive")}>
+          Error loading members: {error.message}
+        </p>
+      </div>
+    )
+  }
+
+  if (profiles.length === 0) {
+    return (
+      <div className="w-full flex items-center justify-center p-8">
+        <p className={cn(typography.body, "text-muted-foreground")}>No members found</p>
+      </div>
+    )
+  }
+
   return (
     <div className="w-full">
       <Table>
@@ -56,31 +55,26 @@ export function MembersTable({ onMemberClick }: MembersTableProps) {
           <TableRow>
             <TableHead className={cn(typography.tableHeader)}>Name</TableHead>
             <TableHead className={cn(typography.tableHeader)}>Email</TableHead>
-            <TableHead className={cn(typography.tableHeader)}>Role</TableHead>
-            <TableHead className={cn(typography.tableHeader)}>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {members.map((member) => (
-            <TableRow
-              key={member.id}
-              onClick={() => onMemberClick?.(member)}
-              className={cn(onMemberClick && "cursor-pointer hover:bg-muted/50")}
-            >
-              <TableCell className={cn(typography.tableCell)}>
-                {member.name}
-              </TableCell>
-              <TableCell className={cn(typography.tableCell)}>
-                {member.email}
-              </TableCell>
-              <TableCell className={cn(typography.tableCell)}>
-                {member.role}
-              </TableCell>
-              <TableCell className={cn(typography.tableCell)}>
-                {member.status}
-              </TableCell>
-            </TableRow>
-          ))}
+          {profiles.map((member) => {
+            const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'No Name'
+            return (
+              <TableRow
+                key={member.id}
+                onClick={() => onMemberClick?.(member)}
+                className={cn(onMemberClick && "cursor-pointer hover:bg-muted/50")}
+              >
+                <TableCell className={cn(typography.tableCell)}>
+                  {fullName}
+                </TableCell>
+                <TableCell className={cn(typography.tableCell)}>
+                  {member.email}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>
