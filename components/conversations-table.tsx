@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { useConversations, useMessages } from "@/lib/supabase/hooks"
@@ -40,6 +41,25 @@ function formatRelativeTime(dateString: string | null): string {
   if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`
 
   return date.toLocaleDateString()
+}
+
+type StatusType = Database['public']['Enums']['task_status']
+
+function getStatusDisplay(status: StatusType): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' } {
+  switch (status) {
+    case 'triage':
+      return { label: 'Triage', variant: 'outline' }
+    case 'with_claude':
+      return { label: 'With Claude', variant: 'default' }
+    case 'with_human':
+      return { label: 'With Human', variant: 'secondary' }
+    case 'complete':
+      return { label: 'Complete', variant: 'secondary' }
+    case 'cancelled':
+      return { label: 'Cancelled', variant: 'destructive' }
+    default:
+      return { label: 'Unknown', variant: 'outline' }
+  }
 }
 
 function LastMessageCell({ conversationId }: { conversationId: string }) {
@@ -88,6 +108,7 @@ export function ConversationsTable({ onConversationClick }: ConversationsTablePr
           <TableRow>
             <TableHead className={cn(typography.tableHeader)}>Member</TableHead>
             <TableHead className={cn(typography.tableHeader)}>Title</TableHead>
+            <TableHead className={cn(typography.tableHeader)}>Status</TableHead>
             <TableHead className={cn(typography.tableHeader)}>Last Message</TableHead>
             <TableHead className={cn(typography.tableHeader)}>Created</TableHead>
           </TableRow>
@@ -97,6 +118,8 @@ export function ConversationsTable({ onConversationClick }: ConversationsTablePr
             const memberName = conversation.profile
               ? [conversation.profile.first_name, conversation.profile.last_name].filter(Boolean).join(' ') || 'No Name'
               : 'Unknown'
+
+            const statusDisplay = getStatusDisplay(conversation.status)
 
             return (
               <TableRow
@@ -109,6 +132,9 @@ export function ConversationsTable({ onConversationClick }: ConversationsTablePr
                 </TableCell>
                 <TableCell className={cn(typography.tableCell)}>
                   {conversation.title || 'Untitled'}
+                </TableCell>
+                <TableCell className={cn(typography.tableCell)}>
+                  <Badge variant={statusDisplay.variant}>{statusDisplay.label}</Badge>
                 </TableCell>
                 <TableCell className={cn(typography.tableCell)}>
                   <LastMessageCell conversationId={conversation.id} />

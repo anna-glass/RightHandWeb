@@ -60,18 +60,24 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["task_status"]
           title: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
           title?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
           title?: string | null
           user_id?: string | null
         }
@@ -123,8 +129,13 @@ export type Database = {
           created_at: string | null
           email: string
           first_name: string | null
+          hours_saved_this_month: number
           id: string
           last_name: string | null
+          memories: string | null
+          notes: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          tasks_this_month: number
           updated_at: string | null
         }
         Insert: {
@@ -132,8 +143,13 @@ export type Database = {
           created_at?: string | null
           email?: string
           first_name?: string | null
+          hours_saved_this_month?: number
           id: string
           last_name?: string | null
+          memories?: string | null
+          notes?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          tasks_this_month?: number
           updated_at?: string | null
         }
         Update: {
@@ -141,8 +157,13 @@ export type Database = {
           created_at?: string | null
           email?: string
           first_name?: string | null
+          hours_saved_this_month?: number
           id?: string
           last_name?: string | null
+          memories?: string | null
+          notes?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          tasks_this_month?: number
           updated_at?: string | null
         }
         Relationships: []
@@ -155,7 +176,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      task_status:
+        | "triage"
+        | "with_claude"
+        | "with_human"
+        | "complete"
+        | "cancelled"
+      user_role:
+        | "member"
+        | "righthand"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -282,6 +311,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      task_status: [
+        "triage",
+        "with_claude",
+        "with_human",
+        "complete",
+        "cancelled",
+      ],
+      user_role: [
+        "member",
+        "righthand",
+      ],
+    },
   },
 } as const

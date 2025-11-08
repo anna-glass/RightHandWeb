@@ -24,7 +24,7 @@ import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Member } from "./members-table"
 import type { Conversation } from "./conversations-table"
-import { useConversations, useAddresses } from "@/lib/supabase/hooks"
+import { useConversations, useAddresses, updateProfile } from "@/lib/supabase/hooks"
 
 interface MemberDetailProps {
   member: Member
@@ -72,16 +72,11 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
     : 'Unknown'
   const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'No Name'
 
-  // Mock data for memories and notes (these would typically come from a separate table)
-  const defaultMemories = [
-    "Hair salon: The Style Studio on 5th Ave",
-    "Preferred restaurant: Casa Milano",
-    "Coffee order: Oat milk latte, extra hot",
-  ]
-
-  // Initialize memories text from array only once
-  const [memoriesText, setMemoriesText] = React.useState(() => defaultMemories.join('\n'))
-  const [notesText, setNotesText] = React.useState("")
+  // Initialize memories and notes from database
+  const [memoriesText, setMemoriesText] = React.useState(member.memories || '')
+  const [notesText, setNotesText] = React.useState(member.notes || '')
+  const [isSavingMemories, setIsSavingMemories] = React.useState(false)
+  const [isSavingNotes, setIsSavingNotes] = React.useState(false)
 
   const filteredMemoriesText = React.useMemo(() => {
     if (!memorySearch.trim()) return memoriesText
@@ -91,6 +86,42 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
       line.toLowerCase().includes(searchLower)
     ).join('\n')
   }, [memoriesText, memorySearch])
+
+  // Auto-save memories after user stops typing
+  React.useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (memoriesText !== member.memories) {
+        setIsSavingMemories(true)
+        try {
+          await updateProfile(member.id, { memories: memoriesText })
+        } catch (error) {
+          console.error('Error saving memories:', error)
+        } finally {
+          setIsSavingMemories(false)
+        }
+      }
+    }, 1000) // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
+  }, [memoriesText, member.id, member.memories])
+
+  // Auto-save notes after user stops typing
+  React.useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (notesText !== member.notes) {
+        setIsSavingNotes(true)
+        try {
+          await updateProfile(member.id, { notes: notesText })
+        } catch (error) {
+          console.error('Error saving notes:', error)
+        } finally {
+          setIsSavingNotes(false)
+        }
+      }
+    }, 1000) // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
+  }, [notesText, member.id, member.notes])
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,6 +195,18 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
                   <div>
                     <p className={cn(typography.label, "text-muted-foreground")}>Joined</p>
                     <p className={cn(typography.body)}>{joinedDate}</p>
+                  </div>
+                </div>
+                <div>
+                  <div>
+                    <p className={cn(typography.label, "text-muted-foreground")}>Tasks This Month</p>
+                    <p className={cn(typography.body)}>{member.tasks_this_month}</p>
+                  </div>
+                </div>
+                <div>
+                  <div>
+                    <p className={cn(typography.label, "text-muted-foreground")}>Hours Saved This Month</p>
+                    <p className={cn(typography.body)}>{member.hours_saved_this_month}</p>
                   </div>
                 </div>
               </div>

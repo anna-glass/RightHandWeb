@@ -18,7 +18,7 @@ import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Conversation } from "@/components/conversations-table"
 import type { Member } from "@/components/members-table"
-import { useMessages, useAddresses, createMessage } from "@/lib/supabase/hooks"
+import { useMessages, useAddresses, createMessage, updateProfile, updateConversation } from "@/lib/supabase/hooks"
 
 interface ConversationDetailProps {
   conversation: Conversation
@@ -60,16 +60,13 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
     ? new Date(conversation.profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Unknown'
 
-  // Mock data for memories and notes (these would typically come from a separate table)
-  const defaultMemories = [
-    "Hair salon: The Style Studio on 5th Ave",
-    "Preferred restaurant: Casa Milano",
-    "Coffee order: Oat milk latte, extra hot",
-  ]
-
-  const [memoriesText, setMemoriesText] = React.useState(() => defaultMemories.join('\n'))
-  const [notesText, setNotesText] = React.useState("")
-  const [conversationNotesText, setConversationNotesText] = React.useState("")
+  // Initialize memories and notes from profile database
+  const [memoriesText, setMemoriesText] = React.useState(conversation.profile?.memories || '')
+  const [notesText, setNotesText] = React.useState(conversation.profile?.notes || '')
+  const [conversationNotesText, setConversationNotesText] = React.useState(conversation.notes || '')
+  const [isSavingMemories, setIsSavingMemories] = React.useState(false)
+  const [isSavingNotes, setIsSavingNotes] = React.useState(false)
+  const [isSavingConversationNotes, setIsSavingConversationNotes] = React.useState(false)
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
@@ -175,6 +172,60 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [displayMessages])
+
+  // Auto-save memories after user stops typing
+  React.useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (conversation.user_id && memoriesText !== conversation.profile?.memories) {
+        setIsSavingMemories(true)
+        try {
+          await updateProfile(conversation.user_id, { memories: memoriesText })
+        } catch (error) {
+          console.error('Error saving memories:', error)
+        } finally {
+          setIsSavingMemories(false)
+        }
+      }
+    }, 1000) // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
+  }, [memoriesText, conversation.user_id, conversation.profile?.memories])
+
+  // Auto-save notes after user stops typing
+  React.useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (conversation.user_id && notesText !== conversation.profile?.notes) {
+        setIsSavingNotes(true)
+        try {
+          await updateProfile(conversation.user_id, { notes: notesText })
+        } catch (error) {
+          console.error('Error saving notes:', error)
+        } finally {
+          setIsSavingNotes(false)
+        }
+      }
+    }, 1000) // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
+  }, [notesText, conversation.user_id, conversation.profile?.notes])
+
+  // Auto-save conversation notes after user stops typing
+  React.useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (conversationNotesText !== conversation.notes) {
+        setIsSavingConversationNotes(true)
+        try {
+          await updateConversation(conversation.id, { notes: conversationNotesText })
+        } catch (error) {
+          console.error('Error saving conversation notes:', error)
+        } finally {
+          setIsSavingConversationNotes(false)
+        }
+      }
+    }, 1000) // Save 1 second after user stops typing
+
+    return () => clearTimeout(timeoutId)
+  }, [conversationNotesText, conversation.id, conversation.notes])
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-6rem)]">

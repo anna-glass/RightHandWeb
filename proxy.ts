@@ -37,11 +37,28 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in and tries to access login, redirect to members
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/members'
-    return NextResponse.redirect(url)
+  // If user is authenticated, check their role
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    // If user is not a righthand, sign them out and redirect to login
+    if (profile?.role !== 'righthand') {
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // If user is logged in and tries to access login, redirect to members
+    if (request.nextUrl.pathname.startsWith('/login')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/members'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

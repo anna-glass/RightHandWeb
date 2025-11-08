@@ -23,11 +23,28 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      if (error) throw error
+      if (authError) throw authError
+
+      // Check if user has righthand role
+      if (authData.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single()
+
+        if (profileError) throw profileError
+
+        if (profile.role !== 'righthand') {
+          // Sign out the user immediately
+          await supabase.auth.signOut()
+          throw new Error('Access denied. Only Right Hand users can log in.')
+        }
+      }
 
       router.push("/members")
       router.refresh()
