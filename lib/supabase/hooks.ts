@@ -1,8 +1,11 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { supabase } from './client'
+import { createClient } from './browser'
 import type { Database } from './types'
+
+// Create a single instance for the hooks
+const supabase = createClient()
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type Conversation = Database['public']['Tables']['conversations']['Row']
@@ -103,16 +106,32 @@ export function useConversations() {
     async function fetchConversations() {
       try {
         setLoading(true)
-        const { data, error } = await supabase
-          .from('conversations')
-          .select(`
-            *,
-            profile:profiles!user_id(*)
-          `)
-          .order('created_at', { ascending: false })
 
-        if (error) throw error
-        setConversations(data || [])
+        // Fetch conversations and profiles separately
+        const [conversationsResult, profilesResult] = await Promise.all([
+          supabase
+            .from('conversations')
+            .select('*')
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('profiles')
+            .select('*')
+        ])
+
+        if (conversationsResult.error) throw conversationsResult.error
+        if (profilesResult.error) throw profilesResult.error
+
+        // Manually join: match conversation.user_id with profile.id
+        // Both reference the same auth.users(id)
+        const conversationsData = conversationsResult.data || []
+        const profilesData = profilesResult.data || []
+
+        const conversationsWithProfiles = conversationsData.map(conv => ({
+          ...conv,
+          profile: profilesData.find(p => p.id === conv.user_id) || null
+        }))
+
+        setConversations(conversationsWithProfiles)
       } catch (err) {
         setError(err as Error)
       } finally {
@@ -159,17 +178,34 @@ export function useConversation(id: string | null) {
     async function fetchConversation() {
       try {
         setLoading(true)
-        const { data, error } = await supabase
+
+        // Fetch conversation
+        const { data: conversationData, error: conversationError } = await supabase
           .from('conversations')
-          .select(`
-            *,
-            profile:profiles!user_id(*)
-          `)
+          .select('*')
           .eq('id', conversationId)
           .single()
 
-        if (error) throw error
-        setConversation(data)
+        if (conversationError) throw conversationError
+
+        // Fetch the associated profile if user_id exists
+        let profileData = null
+        if (conversationData?.user_id) {
+          const { data, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', conversationData.user_id)
+            .single()
+
+          if (!profileError) {
+            profileData = data
+          }
+        }
+
+        setConversation({
+          ...conversationData,
+          profile: profileData
+        })
       } catch (err) {
         setError(err as Error)
       } finally {
