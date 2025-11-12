@@ -48,7 +48,7 @@ export function InviteUserPopover() {
         setSuccess(false)
       }, 1500)
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred")
+      setError(err.message || "Unexpected error occurred")
     } finally {
       setLoading(false)
     }
