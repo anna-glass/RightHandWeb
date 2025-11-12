@@ -31,7 +31,8 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Protected routes - redirect to login if not authenticated
-  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+  // Allow /create-account for invite flow
+  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/create-account')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
