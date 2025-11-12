@@ -20,7 +20,7 @@ export default function ConversationsPage() {
       <AppSidebar activeView="conversations" onViewChange={(view) => {
         if (view === "members") router.push("/members")
       }} />
-      <SidebarInset className="h-screen">
+      <SidebarInset className="h-screen overflow-hidden">
         <PageLayout>
           <ConversationsTable onConversationClick={handleConversationClick} />
         </PageLayout>

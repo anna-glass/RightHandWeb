@@ -24,6 +24,6 @@ export const typography = {
   mono: "font-mono text-sm text-foreground",
 
   // Table specific typography
-  tableHeader: "font-sans text-sm font-medium text-muted-foreground",
-  tableCell: "font-sans text-sm text-foreground",
+  tableHeader: "font-sans text-base font-medium text-muted-foreground",
+  tableCell: "font-sans text-base text-foreground",
 } as const;

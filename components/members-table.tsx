@@ -124,16 +124,13 @@ export function MembersTable({ onMemberClick }: MembersTableProps) {
               <img
                 src={profilePicture}
                 alt={fullName}
-                className="w-16 h-16 rounded-md object-cover bg-background flex-shrink-0"
+                className="w-24 h-24 rounded-md object-cover bg-background flex-shrink-0"
               />
-              <div className="flex-1 min-w-0 space-y-1">
-                <h3 className={cn(typography.bodySmall, "font-medium")}>
+              <div className="flex-1 min-w-0 space-y-2">
+                <h3 className={cn(typography.body, "font-medium")}>
                   {fullName}
                 </h3>
-                <p className={cn(typography.bodySmall, "text-muted-foreground truncate")}>
-                  {member.email}
-                </p>
-                <div className={cn(typography.caption, "text-muted-foreground space-y-0.5")}>
+                <div className={cn(typography.bodySmall, "text-muted-foreground space-y-0.5")}>
                   <p>Last active: {formatRelativeTime(member.updated_at)}</p>
                   <p>Joined: {formatDate(member.created_at)}</p>
                 </div>

@@ -90,7 +90,11 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
   // Auto-save memories after user stops typing
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (memoriesText !== member.memories) {
+      // Normalize values for comparison (treat null as empty string)
+      const currentValue = memoriesText || ''
+      const savedValue = member.memories || ''
+
+      if (currentValue !== savedValue) {
         setIsSavingMemories(true)
         try {
           await updateProfile(member.id, { memories: memoriesText })
@@ -108,7 +112,11 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
   // Auto-save notes after user stops typing
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (notesText !== member.notes) {
+      // Normalize values for comparison (treat null as empty string)
+      const currentValue = notesText || ''
+      const savedValue = member.notes || ''
+
+      if (currentValue !== savedValue) {
         setIsSavingNotes(true)
         try {
           await updateProfile(member.id, { notes: notesText })
@@ -178,7 +186,7 @@ export function MemberDetail({ member, onBack, fromConversation, onBackToConvers
           <img
             src={profilePicture}
             alt={memberName}
-            className="size-32 bg-background"
+            className="size-32 bg-background object-cover rounded-md"
           />
           <div className="flex flex-col gap-4 flex-1">
             {/* Profile Content - Left and Right */}
