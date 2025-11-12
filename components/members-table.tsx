@@ -12,6 +12,7 @@ export type Member = Database['public']['Tables']['profiles']['Row']
 
 interface MembersTableProps {
   onMemberClick?: (member: Member) => void
+  InviteButton?: React.ReactNode
 }
 
 function formatDate(dateString: string | null): string {
@@ -38,7 +39,7 @@ function formatRelativeTime(dateString: string | null): string {
   return formatDate(dateString)
 }
 
-export function MembersTable({ onMemberClick }: MembersTableProps) {
+export function MembersTable({ onMemberClick, InviteButton }: MembersTableProps) {
   const { profiles, loading, error } = useProfiles()
   const [searchQuery, setSearchQuery] = React.useState("")
 
@@ -87,16 +88,19 @@ export function MembersTable({ onMemberClick }: MembersTableProps) {
 
   return (
     <div className="w-full space-y-6">
-      {/* Search bar */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Search members..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search bar and Invite Button */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search members..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {InviteButton}
       </div>
 
       {/* Members grid */}

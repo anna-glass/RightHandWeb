@@ -5,7 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MembersTable } from "@/components/members-table"
 import { PageLayout } from "@/components/page-layout"
-import { InviteUserSheet } from "@/components/invite-user-sheet"
+import { InviteUserPopover } from "@/components/invite-user-popover"
 import { useRouter } from "next/navigation"
 import type { Member } from "@/components/members-table"
 
@@ -23,11 +23,8 @@ export default function MembersPage() {
       }} />
       <SidebarInset className="h-screen">
         <PageLayout>
-          <div className="w-full p-6 space-y-6">
-            <div className="flex justify-end">
-              <InviteUserSheet />
-            </div>
-            <MembersTable onMemberClick={handleMemberClick} />
+          <div className="w-full p-6">
+            <MembersTable onMemberClick={handleMemberClick} InviteButton={<InviteUserPopover />} />
           </div>
         </PageLayout>
       </SidebarInset>

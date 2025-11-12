@@ -64,9 +64,11 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
   const [memoriesText, setMemoriesText] = React.useState(conversation.profile?.memories || '')
   const [notesText, setNotesText] = React.useState(conversation.profile?.notes || '')
   const [conversationNotesText, setConversationNotesText] = React.useState(conversation.notes || '')
+  const [conversationStatus, setConversationStatus] = React.useState(conversation.status)
   const [isSavingMemories, setIsSavingMemories] = React.useState(false)
   const [isSavingNotes, setIsSavingNotes] = React.useState(false)
   const [isSavingConversationNotes, setIsSavingConversationNotes] = React.useState(false)
+  const [isSavingStatus, setIsSavingStatus] = React.useState(false)
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
@@ -212,7 +214,10 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
   // Auto-save conversation notes after user stops typing
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (conversationNotesText !== conversation.notes) {
+      const currentValue = conversationNotesText || ''
+      const savedValue = conversation.notes || ''
+
+      if (currentValue !== savedValue) {
         setIsSavingConversationNotes(true)
         try {
           await updateConversation(conversation.id, { notes: conversationNotesText })
@@ -226,6 +231,23 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
 
     return () => clearTimeout(timeoutId)
   }, [conversationNotesText, conversation.id, conversation.notes])
+
+  // Auto-save conversation status when changed
+  React.useEffect(() => {
+    if (conversationStatus !== conversation.status) {
+      const saveStatus = async () => {
+        setIsSavingStatus(true)
+        try {
+          await updateConversation(conversation.id, { status: conversationStatus })
+        } catch (error) {
+          console.error('Error saving conversation status:', error)
+        } finally {
+          setIsSavingStatus(false)
+        }
+      }
+      saveStatus()
+    }
+  }, [conversationStatus, conversation.id, conversation.status])
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-6rem)]">
@@ -387,18 +409,40 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
         {/* Right Column - User Info Panel */}
         <div className="w-80 flex-shrink-0 flex flex-col gap-4 h-full">
           {/* Conversation Notes Card */}
-          <div className="bg-muted p-6 rounded-lg flex-shrink-0">
-            <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Conversation Notes</h4>
-            <textarea
-              value={conversationNotesText}
-              onChange={(e) => setConversationNotesText(e.target.value)}
-              placeholder="Add notes about this conversation..."
-              className={cn(
-                typography.bodySmall,
-                "w-full h-[120px] p-3 rounded-lg resize-none",
-                "focus:outline-none border-0 bg-background"
-              )}
-            />
+          <div className="bg-muted p-6 rounded-lg flex-shrink-0 space-y-4">
+            <div>
+              <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Status</h4>
+              <select
+                value={conversationStatus}
+                onChange={(e) => setConversationStatus(e.target.value as typeof conversationStatus)}
+                disabled={isSavingStatus}
+                className={cn(
+                  typography.bodySmall,
+                  "w-full p-2 rounded-lg border-0 bg-background",
+                  "focus:outline-none focus:ring-2 focus:ring-ring"
+                )}
+              >
+                <option value="triage">Triage</option>
+                <option value="with_claude">With Claude</option>
+                <option value="with_human">With Human</option>
+                <option value="complete">Complete</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div>
+              <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Notes</h4>
+              <textarea
+                value={conversationNotesText}
+                onChange={(e) => setConversationNotesText(e.target.value)}
+                placeholder="Add notes about this conversation..."
+                className={cn(
+                  typography.bodySmall,
+                  "w-full h-[120px] p-3 rounded-lg resize-none",
+                  "focus:outline-none border-0 bg-background"
+                )}
+              />
+            </div>
           </div>
 
           {/* Profile & User Info Card */}
