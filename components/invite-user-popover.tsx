@@ -19,7 +19,6 @@ type UserRole = Database['public']['Enums']['user_role']
 export function InviteUserPopover() {
   const [open, setOpen] = React.useState(false)
   const [email, setEmail] = React.useState("")
-  const [role, setRole] = React.useState<UserRole>("member")
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [success, setSuccess] = React.useState(false)
@@ -31,7 +30,7 @@ export function InviteUserPopover() {
     setSuccess(false)
 
     try {
-      const result = await inviteUser(email, role)
+      const result = await inviteUser(email, "member")
 
       if (!result.success) {
         setError(result.error || "Failed to invite user")
@@ -40,7 +39,6 @@ export function InviteUserPopover() {
 
       setSuccess(true)
       setEmail("")
-      setRole("member")
 
       // Close the popover after a short delay to show success message
       setTimeout(() => {
@@ -85,49 +83,6 @@ export function InviteUserPopover() {
                 disabled={loading}
                 className="h-9"
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className={cn(typography.label, "text-xs")}>
-                Role
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="member"
-                    checked={role === "member"}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                    disabled={loading}
-                    className="w-4 h-4 mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className={cn(typography.caption, "font-medium")}>Member</div>
-                    <div className={cn(typography.caption, "text-muted-foreground text-xs")}>
-                      Access to mobile app
-                    </div>
-                  </div>
-                </label>
-
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="righthand"
-                    checked={role === "righthand"}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                    disabled={loading}
-                    className="w-4 h-4 mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className={cn(typography.caption, "font-medium")}>Right Hand</div>
-                    <div className={cn(typography.caption, "text-muted-foreground text-xs")}>
-                      Dashboard admin
-                    </div>
-                  </div>
-                </label>
-              </div>
             </div>
 
             {error && (

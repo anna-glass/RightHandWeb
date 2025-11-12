@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
@@ -10,7 +10,6 @@ import { createClient } from "@/lib/supabase/browser"
 
 export default function CreateAccountPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
@@ -260,11 +259,9 @@ export default function CreateAccountPage() {
       if (profile?.role === 'righthand') {
         router.push("/members")
       } else {
-        // For member users, show a success message
-        setError(null)
-        alert("Account created successfully! You can now use the mobile app to log in.")
+        // For member users, sign out and redirect to welcome page
         await supabase.auth.signOut()
-        router.push("/login")
+        router.push("/welcome")
       }
     } catch (err: any) {
       setError(err.message || "Failed to complete profile")
