@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2025-10-29.clover',
 })
 
 export async function POST(req: NextRequest) {
@@ -68,6 +68,10 @@ export async function POST(req: NextRequest) {
 
     // Create Stripe checkout session
     console.log('Creating checkout session...')
+    console.log('Customer ID:', customerId)
+    console.log('User ID to store in metadata:', user.id)
+    console.log('Price ID:', process.env.STRIPE_PRICE_ID)
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: [
@@ -84,8 +88,9 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    console.log('Checkout session created:', session.id)
+    console.log('✅ Checkout session created:', session.id)
     console.log('Session URL:', session.url)
+    console.log('Session metadata:', JSON.stringify(session.metadata, null, 2))
 
     return NextResponse.json({
       sessionId: session.id,
