@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-10-29.clover',
 })
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -51,7 +51,11 @@ export async function POST(req: NextRequest) {
       }
 
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription
+        type SubscriptionWithPeriodEnd = Stripe.Subscription & {
+          current_period_end?: number | null
+        }
+
+        const subscription = event.data.object as SubscriptionWithPeriodEnd
         const customerId = subscription.customer as string
 
         // Find user by customer ID
@@ -67,14 +71,17 @@ export async function POST(req: NextRequest) {
         }
 
         // Update subscription status
+        const currentPeriodEnd =
+          typeof subscription.current_period_end === 'number'
+            ? new Date(subscription.current_period_end * 1000).toISOString()
+            : null
+
         await supabase
           .from('profiles')
           .update({
             subscription_status: subscription.status,
             stripe_subscription_id: subscription.id,
-            subscription_current_period_end: new Date(
-              subscription.current_period_end * 1000
-            ).toISOString(),
+            subscription_current_period_end: currentPeriodEnd,
           })
           .eq('id', profile.id)
 
