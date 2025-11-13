@@ -5,6 +5,14 @@ import { Search } from "lucide-react"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { useProfiles } from "@/lib/supabase/hooks"
 import type { Database } from "@/lib/supabase/types"
 
@@ -19,24 +27,6 @@ function formatDate(dateString: string | null): string {
   if (!dateString) return 'Unknown'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-function formatRelativeTime(dateString: string | null): string {
-  if (!dateString) return 'Never'
-
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-
-  return formatDate(dateString)
 }
 
 export function MembersTable({ onMemberClick, InviteButton }: MembersTableProps) {
@@ -97,13 +87,13 @@ export function MembersTable({ onMemberClick, InviteButton }: MembersTableProps)
             placeholder="Search members..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-white"
           />
         </div>
         {InviteButton}
       </div>
 
-      {/* Members grid */}
+      {/* Members table */}
       {filteredProfiles.length === 0 ? (
         <div className="w-full flex items-center justify-center p-8">
           <p className={cn(typography.body, "text-muted-foreground")}>
@@ -111,37 +101,45 @@ export function MembersTable({ onMemberClick, InviteButton }: MembersTableProps)
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {filteredProfiles.map((member) => {
-          const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'No Name'
-          const profilePicture = member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.id}`
+        <div className="bg-muted rounded-lg p-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={cn(typography.tableHeader)}>Name</TableHead>
+                <TableHead className={cn(typography.tableHeader)}>Last Active</TableHead>
+                <TableHead className={cn(typography.tableHeader)}>Joined</TableHead>
+                <TableHead className={cn(typography.tableHeader)}>Email</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProfiles.map((member) => {
+                const fullName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'No Name'
 
-          return (
-            <div
-              key={member.id}
-              onClick={() => onMemberClick?.(member)}
-              className={cn(
-                "bg-muted p-4 rounded-lg flex items-start gap-4 transition-all",
-                onMemberClick && "cursor-pointer hover:bg-muted/70 hover:shadow-md"
-              )}
-            >
-              <img
-                src={profilePicture}
-                alt={fullName}
-                className="w-24 h-24 rounded-md object-cover bg-background flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0 space-y-2">
-                <h3 className={cn(typography.body, "font-medium")}>
-                  {fullName}
-                </h3>
-                <div className={cn(typography.bodySmall, "text-muted-foreground space-y-0.5")}>
-                  <p>Last active: {formatRelativeTime(member.updated_at)}</p>
-                  <p>Joined: {formatDate(member.created_at)}</p>
-                </div>
-              </div>
-            </div>
-          )
-        })}
+                return (
+                  <TableRow
+                    key={member.id}
+                    onClick={() => onMemberClick?.(member)}
+                    className={cn(
+                      onMemberClick && "cursor-pointer hover:bg-muted/50"
+                    )}
+                  >
+                    <TableCell className={cn(typography.tableCell, "font-medium")}>
+                      {fullName}
+                    </TableCell>
+                    <TableCell className={cn(typography.tableCell)}>
+                      {formatDate(member.updated_at)}
+                    </TableCell>
+                    <TableCell className={cn(typography.tableCell)}>
+                      {formatDate(member.created_at)}
+                    </TableCell>
+                    <TableCell className={cn(typography.tableCell)}>
+                      {member.email}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

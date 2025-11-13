@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { User, Bot, Search, Send, ChevronRight } from "lucide-react"
+import { Search, Send, Plus, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Breadcrumb,
@@ -14,17 +14,28 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
-import type { Conversation } from "@/components/conversations-table"
-import type { Member } from "@/components/members-table"
-import { useMessages, useAddresses, createMessage, updateProfile, updateConversation } from "@/lib/supabase/hooks"
+import type { Database } from "@/lib/supabase/types"
+import {
+  useMessages,
+  useAddresses,
+  useTasks,
+  createMessage,
+  updateProfile,
+  createTask,
+  updateTask,
+  deleteTask
+} from "@/lib/supabase/hooks"
 
-interface ConversationDetailProps {
-  conversation: Conversation
-  onBack: () => void
-  fromMember?: Member | null
-  onBackToMember?: () => void
+type Profile = Database['public']['Tables']['profiles']['Row']
+type Message = Database['public']['Tables']['messages']['Row']
+type Task = Database['public']['Tables']['tasks']['Row']
+
+interface ChatInterfaceProps {
+  userId: string
+  profile: Profile
 }
 
 function formatTime(dateString: string | null): string {
@@ -33,42 +44,27 @@ function formatTime(dateString: string | null): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
-type Message = {
-  id: string
-  conversation_id: string | null
-  sender: 'user' | 'assistant' | null
-  content: string
-  created_at: string
-}
-
-export function ConversationDetail({ conversation, onBack, fromMember, onBackToMember }: ConversationDetailProps) {
+export function ChatInterface({ userId, profile }: ChatInterfaceProps) {
   const router = useRouter()
-  const { messages, loading, error } = useMessages(conversation.id)
-  const { addresses, loading: addressesLoading } = useAddresses(conversation.user_id || null)
+  const { messages, loading, error } = useMessages(userId)
+  const { addresses, loading: addressesLoading } = useAddresses(userId)
+  const { tasks, loading: tasksLoading } = useTasks(userId)
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const [memorySearch, setMemorySearch] = React.useState("")
   const [newMessage, setNewMessage] = React.useState("")
   const [sending, setSending] = React.useState(false)
   const [optimisticMessages, setOptimisticMessages] = React.useState<Message[]>([])
+  const [newTaskTitle, setNewTaskTitle] = React.useState("")
+  const [creatingTask, setCreatingTask] = React.useState(false)
 
-  const memberName = conversation.profile
-    ? [conversation.profile.first_name, conversation.profile.last_name].filter(Boolean).join(' ') || 'User'
-    : 'User'
-
-  const profilePicture = conversation.profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conversation.user_id}`
-  const joinedDate = conversation.profile?.created_at
-    ? new Date(conversation.profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    : 'Unknown'
+  const memberName = [profile.first_name, profile.last_name].filter(Boolean).join(' ') || 'User'
+  const profilePicture = profile.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
 
   // Initialize memories and notes from profile database
-  const [memoriesText, setMemoriesText] = React.useState(conversation.profile?.memories || '')
-  const [notesText, setNotesText] = React.useState(conversation.profile?.notes || '')
-  const [conversationNotesText, setConversationNotesText] = React.useState(conversation.notes || '')
-  const [conversationStatus, setConversationStatus] = React.useState(conversation.status)
+  const [memoriesText, setMemoriesText] = React.useState(profile.memories || '')
+  const [notesText, setNotesText] = React.useState(profile.notes || '')
   const [isSavingMemories, setIsSavingMemories] = React.useState(false)
   const [isSavingNotes, setIsSavingNotes] = React.useState(false)
-  const [isSavingConversationNotes, setIsSavingConversationNotes] = React.useState(false)
-  const [isSavingStatus, setIsSavingStatus] = React.useState(false)
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || sending) return
@@ -79,10 +75,11 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
     // Create optimistic message
     const optimisticMessage: Message = {
       id: optimisticId,
-      conversation_id: conversation.id,
+      user_id: userId,
       sender: 'assistant',
       content: messageContent,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      attachments: null
     }
 
     try {
@@ -93,7 +90,7 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
       setOptimisticMessages(prev => [...prev, optimisticMessage])
 
       await createMessage({
-        conversation_id: conversation.id,
+        user_id: userId,
         sender: 'assistant',
         content: messageContent
       })
@@ -116,34 +113,41 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
     }
   }
 
-  const handleViewProfile = () => {
-    if (conversation.user_id) {
-      // Build the navigation path
-      const searchParams = new URLSearchParams(window.location.search)
-      const currentPath = searchParams.get('path') || ''
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim() || creatingTask) return
 
-      // Parse current path
-      const pathParts = currentPath ? currentPath.split(',') : []
+    try {
+      setCreatingTask(true)
+      await createTask({
+        user_id: userId,
+        title: newTaskTitle.trim(),
+        status: 'open'
+      })
+      setNewTaskTitle("")
+    } catch (err) {
+      console.error('Error creating task:', err)
+      alert('Failed to create task. Please try again.')
+    } finally {
+      setCreatingTask(false)
+    }
+  }
 
-      // Check if 'member' type already exists in path
-      const memberIndex = pathParts.findIndex(p => p.startsWith('member-'))
+  const handleToggleTaskStatus = async (task: Task) => {
+    try {
+      const newStatus = task.status === 'open' ? 'closed' : 'open'
+      await updateTask(task.id, { status: newStatus })
+    } catch (err) {
+      console.error('Error updating task:', err)
+      alert('Failed to update task. Please try again.')
+    }
+  }
 
-      let newPath: string[]
-      if (memberIndex >= 0) {
-        // Pop off everything from the first member onward (inclusive)
-        newPath = pathParts.slice(0, memberIndex)
-      } else {
-        // No member in path, add current conversation to path
-        const convId = `conv-${conversation.id}`
-        newPath = [...pathParts]
-        if (!newPath.includes(convId)) {
-          newPath.push(convId)
-        }
-      }
-
-      // Navigate to member with new path
-      const pathParam = newPath.length > 0 ? `path=${newPath.join(',')}` : ''
-      router.push(`/members/${conversation.user_id}${pathParam ? '?' + pathParam : ''}`)
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId)
+    } catch (err) {
+      console.error('Error deleting task:', err)
+      alert('Failed to delete task. Please try again.')
     }
   }
 
@@ -178,10 +182,10 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
   // Auto-save memories after user stops typing
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (conversation.user_id && memoriesText !== conversation.profile?.memories) {
+      if (memoriesText !== profile.memories) {
         setIsSavingMemories(true)
         try {
-          await updateProfile(conversation.user_id, { memories: memoriesText })
+          await updateProfile(userId, { memories: memoriesText })
         } catch (error) {
           console.error('Error saving memories:', error)
         } finally {
@@ -191,15 +195,15 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
     }, 1000) // Save 1 second after user stops typing
 
     return () => clearTimeout(timeoutId)
-  }, [memoriesText, conversation.user_id, conversation.profile?.memories])
+  }, [memoriesText, userId, profile.memories])
 
   // Auto-save notes after user stops typing
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
-      if (conversation.user_id && notesText !== conversation.profile?.notes) {
+      if (notesText !== profile.notes) {
         setIsSavingNotes(true)
         try {
-          await updateProfile(conversation.user_id, { notes: notesText })
+          await updateProfile(userId, { notes: notesText })
         } catch (error) {
           console.error('Error saving notes:', error)
         } finally {
@@ -209,91 +213,28 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
     }, 1000) // Save 1 second after user stops typing
 
     return () => clearTimeout(timeoutId)
-  }, [notesText, conversation.user_id, conversation.profile?.notes])
+  }, [notesText, userId, profile.notes])
 
-  // Auto-save conversation notes after user stops typing
-  React.useEffect(() => {
-    const timeoutId = setTimeout(async () => {
-      const currentValue = conversationNotesText || ''
-      const savedValue = conversation.notes || ''
-
-      if (currentValue !== savedValue) {
-        setIsSavingConversationNotes(true)
-        try {
-          await updateConversation(conversation.id, { notes: conversationNotesText })
-        } catch (error) {
-          console.error('Error saving conversation notes:', error)
-        } finally {
-          setIsSavingConversationNotes(false)
-        }
-      }
-    }, 1000) // Save 1 second after user stops typing
-
-    return () => clearTimeout(timeoutId)
-  }, [conversationNotesText, conversation.id, conversation.notes])
-
-  // Auto-save conversation status when changed
-  React.useEffect(() => {
-    if (conversationStatus !== conversation.status) {
-      const saveStatus = async () => {
-        setIsSavingStatus(true)
-        try {
-          await updateConversation(conversation.id, { status: conversationStatus })
-        } catch (error) {
-          console.error('Error saving conversation status:', error)
-        } finally {
-          setIsSavingStatus(false)
-        }
-      }
-      saveStatus()
-    }
-  }, [conversationStatus, conversation.id, conversation.status])
+  const openTasks = tasks.filter(t => t.status === 'open')
+  const closedTasks = tasks.filter(t => t.status === 'closed')
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-6rem)]">
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
-          {fromMember ? (
-            <>
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  onClick={onBack}
-                  className="cursor-pointer"
-                >
-                  Members
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  onClick={onBackToMember}
-                  className="cursor-pointer"
-                >
-                  {[fromMember.first_name, fromMember.last_name].filter(Boolean).join(' ') || 'User'}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{conversation.title || 'Untitled'}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          ) : (
-            <>
-              <BreadcrumbItem>
-                <BreadcrumbLink
-                  onClick={onBack}
-                  className="cursor-pointer"
-                >
-                  Conversations
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{conversation.title || 'Untitled'}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
+          <BreadcrumbItem>
+            <BreadcrumbLink
+              onClick={() => router.push("/members")}
+              className="cursor-pointer"
+            >
+              Members
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{memberName}</BreadcrumbPage>
+          </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
@@ -407,46 +348,98 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
         </div>
 
         {/* Right Column - User Info Panel */}
-        <div className="w-80 flex-shrink-0 flex flex-col gap-4 h-full">
-          {/* Conversation Notes Card */}
+        <div className="w-80 flex-shrink-0 flex flex-col gap-4 h-full overflow-y-auto">
+          {/* Tasks Card */}
           <div className="bg-muted p-6 rounded-lg flex-shrink-0 space-y-4">
-            <div>
-              <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Status</h4>
-              <select
-                value={conversationStatus}
-                onChange={(e) => setConversationStatus(e.target.value as typeof conversationStatus)}
-                disabled={isSavingStatus}
-                className={cn(
-                  typography.bodySmall,
-                  "w-full p-2 rounded-lg border-0 bg-background",
-                  "focus:outline-none focus:ring-2 focus:ring-ring"
-                )}
-              >
-                <option value="triage">Triage</option>
-                <option value="with_claude">With Claude</option>
-                <option value="with_human">With Human</option>
-                <option value="complete">Complete</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+            <div className="flex items-center justify-between">
+              <h4 className={cn(typography.bodySmall, "font-medium")}>Tasks</h4>
+              <Badge variant="secondary">{openTasks.length} open</Badge>
             </div>
 
-            <div>
-              <h4 className={cn(typography.bodySmall, "font-medium mb-3")}>Notes</h4>
-              <textarea
-                value={conversationNotesText}
-                onChange={(e) => setConversationNotesText(e.target.value)}
-                placeholder="Add notes about this conversation..."
-                className={cn(
-                  typography.bodySmall,
-                  "w-full h-[120px] p-3 rounded-lg resize-none",
-                  "focus:outline-none border-0 bg-background"
-                )}
+            {/* Create Task */}
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="New task..."
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleCreateTask()
+                  }
+                }}
+                disabled={creatingTask}
+                className="flex-1 h-8 text-sm"
               />
+              <Button
+                onClick={handleCreateTask}
+                disabled={!newTaskTitle.trim() || creatingTask}
+                size="icon"
+                className="h-8 w-8"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
+
+            {/* Open Tasks */}
+            {tasksLoading ? (
+              <p className={cn(typography.bodySmall, "text-muted-foreground")}>Loading tasks...</p>
+            ) : openTasks.length === 0 ? (
+              <p className={cn(typography.bodySmall, "text-muted-foreground")}>No open tasks</p>
+            ) : (
+              <div className="space-y-2">
+                {openTasks.map((task) => (
+                  <div key={task.id} className="flex items-start gap-2 bg-background p-2 rounded">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => handleToggleTaskStatus(task)}
+                      className="mt-1 cursor-pointer"
+                    />
+                    <span className={cn(typography.bodySmall, "flex-1")}>{task.title}</span>
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Closed Tasks (collapsible) */}
+            {closedTasks.length > 0 && (
+              <details className="space-y-2">
+                <summary className={cn(typography.bodySmall, "cursor-pointer text-muted-foreground")}>
+                  {closedTasks.length} closed task{closedTasks.length !== 1 ? 's' : ''}
+                </summary>
+                <div className="space-y-2 mt-2">
+                  {closedTasks.map((task) => (
+                    <div key={task.id} className="flex items-start gap-2 bg-background p-2 rounded opacity-50">
+                      <input
+                        type="checkbox"
+                        checked={true}
+                        onChange={() => handleToggleTaskStatus(task)}
+                        className="mt-1 cursor-pointer"
+                      />
+                      <span className={cn(typography.bodySmall, "flex-1 line-through")}>{task.title}</span>
+                      <button
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
 
           {/* Profile & User Info Card */}
-          <div className="bg-muted p-6 rounded-lg space-y-6 flex-1 overflow-y-auto">
+          <div className="bg-muted p-6 rounded-lg space-y-6">
             {/* Profile Section */}
             <div className="flex items-start gap-4">
               <img
@@ -454,22 +447,16 @@ export function ConversationDetail({ conversation, onBack, fromMember, onBackToM
                 alt={memberName}
                 className="size-16 bg-background rounded-lg flex-shrink-0"
               />
-              <div className="flex-1 min-w-0 space-y-2">
-                <div>
-                  <h3 className={cn(typography.bodySmall, "font-medium")}>{memberName}</h3>
-                  <p className={cn(typography.bodySmall, "text-muted-foreground truncate")}>
-                    {conversation.profile?.email}
+              <div className="flex-1 min-w-0 space-y-1">
+                <h3 className={cn(typography.bodySmall, "font-medium")}>{memberName}</h3>
+                <p className={cn(typography.bodySmall, "text-muted-foreground truncate")}>
+                  {profile.email}
+                </p>
+                {profile.phone_number && (
+                  <p className={cn(typography.bodySmall, "text-muted-foreground")}>
+                    {profile.phone_number}
                   </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleViewProfile}
-                  className="w-full justify-start gap-2 text-xs h-8 px-0"
-                >
-                  See Profile
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
+                )}
               </div>
             </div>
 

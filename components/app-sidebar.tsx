@@ -19,7 +19,7 @@ import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 
-export type SidebarView = "members" | "conversations"
+export type SidebarView = "members" | "chats"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   activeView: SidebarView
@@ -49,20 +49,20 @@ export function AppSidebar({ activeView, onViewChange, ...props }: AppSidebarPro
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  isActive={activeView === "chats"}
+                  onClick={() => onViewChange("chats")}
+                  className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
+                >
+                  <span>Chats</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
                   isActive={activeView === "members"}
                   onClick={() => onViewChange("members")}
                   className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
                 >
                   <span>Members</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeView === "conversations"}
-                  onClick={() => onViewChange("conversations")}
-                  className="data-[active=true]:bg-white/20 data-[active=true]:text-white hover:bg-white/10 hover:text-white active:bg-white/20 active:text-white"
-                >
-                  <span>Conversations</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

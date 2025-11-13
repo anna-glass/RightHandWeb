@@ -19,7 +19,8 @@ export default function MembersPage() {
   return (
     <SidebarProvider>
       <AppSidebar activeView="members" onViewChange={(view) => {
-        if (view === "conversations") router.push("/conversations")
+        if (view === "chats") router.push("/chats")
+        else router.push("/members")
       }} />
       <SidebarInset className="h-screen">
         <PageLayout>

@@ -56,34 +56,34 @@ export type Database = {
         }
         Relationships: []
       }
-      conversations: {
+      messages: {
         Row: {
+          attachments: Json | null
+          content: string
           created_at: string | null
           id: string
-          notes: string | null
-          status: Database["public"]["Enums"]["task_status"]
-          title: string | null
-          user_id: string | null
+          sender: string | null
+          user_id: string
         }
         Insert: {
+          attachments?: Json | null
+          content: string
           created_at?: string | null
           id?: string
-          notes?: string | null
-          status?: Database["public"]["Enums"]["task_status"]
-          title?: string | null
-          user_id?: string | null
+          sender?: string | null
+          user_id: string
         }
         Update: {
+          attachments?: Json | null
+          content?: string
           created_at?: string | null
           id?: string
-          notes?: string | null
-          status?: Database["public"]["Enums"]["task_status"]
-          title?: string | null
-          user_id?: string | null
+          sender?: string | null
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "conversations_user_id_fkey"
+            foreignKeyName: "messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -91,34 +91,40 @@ export type Database = {
           },
         ]
       }
-      messages: {
+      tasks: {
         Row: {
-          content: string
-          conversation_id: string | null
           created_at: string | null
           id: string
-          sender: string | null
+          status: string | null
+          status_updates: string[] | null
+          title: string | null
+          updated_at: string | null
+          user_id: string
         }
         Insert: {
-          content: string
-          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          sender?: string | null
+          status?: string | null
+          status_updates?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
         }
         Update: {
-          content?: string
-          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          sender?: string | null
+          status?: string | null
+          status_updates?: string[] | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "messages_conversation_id_fkey"
-            columns: ["conversation_id"]
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "conversations"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -191,12 +197,6 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      task_status:
-        | "triage"
-        | "with_claude"
-        | "with_human"
-        | "complete"
-        | "cancelled"
       user_role:
         | "member"
         | "righthand"
@@ -327,13 +327,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      task_status: [
-        "triage",
-        "with_claude",
-        "with_human",
-        "complete",
-        "cancelled",
-      ],
       user_role: [
         "member",
         "righthand",
