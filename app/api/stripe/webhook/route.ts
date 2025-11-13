@@ -8,6 +8,37 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
+type SubscriptionWithPeriodEnd = Stripe.Subscription & {
+  current_period_end?: number | string | null
+}
+
+const oneMonthFromNowIso = (): string => {
+  const future = new Date()
+  future.setMonth(future.getMonth() + 1)
+  return future.toISOString()
+}
+
+const toIsoOrFallback = (
+  value: number | string | Date | null | undefined
+): string => {
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+
+  if (typeof value === 'number') {
+    return new Date(value * 1000).toISOString()
+  }
+
+  if (typeof value === 'string') {
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString()
+    }
+  }
+
+  return oneMonthFromNowIso()
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text()
@@ -31,19 +62,37 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        const userId = session.metadata?.user_id
+        const userId = session.metadata?.supabase_user_id
 
         if (!userId) {
-          console.error('No user_id in session metadata')
+          console.error('No supabase_user_id in session metadata')
           break
         }
 
-        // Update the user's subscription status
+        if (!session.subscription) {
+          console.error('No subscription in checkout session')
+          break
+        }
+
+        // Retrieve full subscription object to get current_period_end
+        const subscriptionResponse = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        )
+
+        const subscription =
+          subscriptionResponse as SubscriptionWithPeriodEnd
+
+        const currentPeriodEnd = toIsoOrFallback(
+          subscription.current_period_end
+        )
+
+        // Update the user's subscription status with all fields
         await supabase
           .from('profiles')
           .update({
-            subscription_status: 'active',
-            stripe_subscription_id: session.subscription as string,
+            subscription_status: subscription.status,
+            stripe_subscription_id: subscription.id,
+            subscription_current_period_end: currentPeriodEnd,
           })
           .eq('id', userId)
 
@@ -51,10 +100,6 @@ export async function POST(req: NextRequest) {
       }
 
       case 'customer.subscription.updated': {
-        type SubscriptionWithPeriodEnd = Stripe.Subscription & {
-          current_period_end?: number | null
-        }
-
         const subscription = event.data.object as SubscriptionWithPeriodEnd
         const customerId = subscription.customer as string
 
@@ -71,10 +116,9 @@ export async function POST(req: NextRequest) {
         }
 
         // Update subscription status
-        const currentPeriodEnd =
-          typeof subscription.current_period_end === 'number'
-            ? new Date(subscription.current_period_end * 1000).toISOString()
-            : null
+        const currentPeriodEnd = toIsoOrFallback(
+          subscription.current_period_end
+        )
 
         await supabase
           .from('profiles')
