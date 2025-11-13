@@ -16,14 +16,12 @@ export default function CreateAccountPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [verifying, setVerifying] = React.useState(true)
-  const [step, setStep] = React.useState<"password" | "profile">("password")
 
   // Profile fields
   const [firstName, setFirstName] = React.useState("")
   const [lastName, setLastName] = React.useState("")
   const [phoneNumber, setPhoneNumber] = React.useState("")
   const [profileImage, setProfileImage] = React.useState<File | null>(null)
-  const [imagePreview, setImagePreview] = React.useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -98,7 +96,7 @@ export default function CreateAccountPage() {
     }
   }, [supabase.auth])
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -125,52 +123,7 @@ export default function CreateAccountPage() {
 
       if (updateError) throw updateError
 
-      // Move to profile step
-      setStep("profile")
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to set password")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Validate file type
-      const validTypes = ['image/png', 'image/jpeg', 'image/jpg']
-      if (!validTypes.includes(file.type)) {
-        setError('Please upload a PNG or JPEG image.')
-        return
-      }
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024
-      if (file.size > maxSize) {
-        setError('File too large. Maximum size is 5MB.')
-        return
-      }
-
-      setProfileImage(file)
-      setError(null)
-
-      // Create preview
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Get the current user first
+      // Get the current user
       const { data: { user }, error: userError } = await supabase.auth.getUser()
 
       if (userError || !user) {
@@ -229,7 +182,7 @@ export default function CreateAccountPage() {
       })
 
       // Update the profile using browser client
-      const { data: updateData, error: updateError } = await supabase
+      const { data: updateData, error: profileUpdateError } = await supabase
         .from('profiles')
         .update({
           first_name: firstName,
@@ -242,10 +195,10 @@ export default function CreateAccountPage() {
         .select()
 
       console.log('Update result:', updateData)
-      console.log('Update error:', updateError)
+      console.log('Update error:', profileUpdateError)
 
-      if (updateError) {
-        throw new Error(updateError.message)
+      if (profileUpdateError) {
+        throw new Error(profileUpdateError.message)
       }
 
       // Get the user's role from their profile
@@ -259,16 +212,53 @@ export default function CreateAccountPage() {
       if (profile?.role === 'righthand') {
         router.push("/members")
       } else {
-        // For member users, sign out and redirect to welcome page
-        await supabase.auth.signOut()
-        router.push("/welcome")
+        // For member users, redirect to Stripe checkout
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to create checkout session')
+        }
+
+        const { url } = await response.json()
+
+        if (url) {
+          window.location.href = url
+        }
       }
     } catch (err: any) {
-      setError(err.message || "Failed to complete profile")
+      setError(err.message || "Failed to complete account setup")
     } finally {
       setLoading(false)
     }
   }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg']
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload a PNG or JPEG image.')
+        return
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024
+      if (file.size > maxSize) {
+        setError('File too large. Maximum size is 5MB.')
+        return
+      }
+
+      setProfileImage(file)
+      setError(null)
+    }
+  }
+
 
   if (verifying) {
     return (
@@ -284,38 +274,36 @@ export default function CreateAccountPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg">
+      <div className="w-full max-w-2xl bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg">
         <div className="text-center">
           <img src="/righthandlogo.png" alt="Right Hand" className="h-16 w-auto mx-auto mb-4" />
           <h1 className={cn(typography.h2, "mb-2")}>
-            {step === "password" ? "Create Your Account" : "Complete Your Profile"}
+            Create Your Account
           </h1>
           <p className={cn(typography.body, "text-muted-foreground")}>
-            {step === "password"
-              ? "Set your password to complete account setup"
-              : "Tell us a bit about yourself"}
+            Set your password and complete your profile
           </p>
         </div>
 
-        {step === "password" ? (
-          <form onSubmit={handlePasswordSubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="email" className={cn(typography.label, "block mb-2")}>
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  disabled
-                  className="bg-muted"
-                />
-                <p className={cn(typography.caption, "text-muted-foreground mt-1")}>
-                  Your email address is confirmed
-                </p>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className={cn(typography.label, "block mb-2")}>
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                disabled
+                className="bg-muted"
+              />
+              <p className={cn(typography.caption, "text-muted-foreground mt-1")}>
+                Your email address is confirmed
+              </p>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="password" className={cn(typography.label, "block mb-2")}>
                   Password
@@ -323,7 +311,6 @@ export default function CreateAccountPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -342,7 +329,6 @@ export default function CreateAccountPage() {
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -352,19 +338,7 @@ export default function CreateAccountPage() {
               </div>
             </div>
 
-            {error && (
-              <div className="text-destructive text-sm p-3 bg-destructive/10 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={loading || !email}>
-              {loading ? "Setting Password..." : "Continue"}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleProfileSubmit} className="space-y-6">
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className={cn(typography.label, "block mb-2")}>
                   First Name
@@ -372,7 +346,6 @@ export default function CreateAccountPage() {
                 <Input
                   id="firstName"
                   type="text"
-                  placeholder="John"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
@@ -387,67 +360,56 @@ export default function CreateAccountPage() {
                 <Input
                   id="lastName"
                   type="text"
-                  placeholder="Doe"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                   disabled={loading}
                 />
               </div>
-
-              <div>
-                <label htmlFor="phoneNumber" className={cn(typography.label, "block mb-2")}>
-                  Phone Number
-                </label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="profileImage" className={cn(typography.label, "block mb-2")}>
-                  Profile Pic (Optional)
-                </label>
-                <Input
-                  id="profileImage"
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  onChange={handleImageChange}
-                  disabled={loading}
-                  className="cursor-pointer"
-                />
-                <p className={cn(typography.caption, "text-muted-foreground mt-1")}>
-                  PNG or JPEG, max 5MB
-                </p>
-                {imagePreview && (
-                  <div className="mt-3">
-                    <img
-                      src={imagePreview}
-                      alt="Profile preview"
-                      className="w-24 h-24 object-cover rounded-full border-2 border-border"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
-            {error && (
-              <div className="text-destructive text-sm p-3 bg-destructive/10 rounded-md">
-                {error}
-              </div>
-            )}
+            <div>
+              <label htmlFor="phoneNumber" className={cn(typography.label, "block mb-2")}>
+                Phone Number
+              </label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Completing Setup..." : "Complete Setup"}
-            </Button>
-          </form>
-        )}
+            <div>
+              <label htmlFor="profileImage" className={cn(typography.label, "block mb-2")}>
+                Profile Pic (Optional)
+              </label>
+              <Input
+                id="profileImage"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={handleImageChange}
+                disabled={loading}
+                className="cursor-pointer"
+              />
+              <p className={cn(typography.caption, "text-muted-foreground mt-1")}>
+                PNG or JPEG, max 5MB
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="text-destructive text-sm p-3 bg-destructive/10 rounded-md">
+              {error}
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={loading || !email}>
+            {loading ? "Creating Account..." : "Continue to Billing"}
+          </Button>
+        </form>
       </div>
     </div>
   )
