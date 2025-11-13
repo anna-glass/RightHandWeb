@@ -201,34 +201,29 @@ export default function CreateAccountPage() {
         throw new Error(profileUpdateError.message)
       }
 
-      // Get the user's role from their profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+      console.log('Profile update successful, about to call checkout API')
 
-      // Redirect based on role
-      if (profile?.role === 'righthand') {
-        router.push("/members")
+      // Redirect to Stripe checkout
+      console.log('Calling /api/stripe/checkout...')
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      console.log('Fetch completed, response:', response)
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        throw new Error(`Failed to create checkout session: ${errorData}`)
+      }
+
+      const { url } = await response.json()
+
+      if (url) {
+        window.location.href = url
       } else {
-        // For member users, redirect to Stripe checkout
-        const response = await fetch('/api/stripe/checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to create checkout session')
-        }
-
-        const { url } = await response.json()
-
-        if (url) {
-          window.location.href = url
-        }
+        throw new Error('No checkout URL returned')
       }
     } catch (err: any) {
       setError(err.message || "Failed to complete account setup")

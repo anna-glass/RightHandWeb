@@ -27,12 +27,17 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // Skip middleware for API routes
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return supabaseResponse
+  }
+
   // Refresh session if expired
   const { data: { user } } = await supabase.auth.getUser()
 
   // Protected routes - redirect to login if not authenticated
-  // Allow /create-account for invite flow
-  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/create-account')) {
+  // Allow /create-account and /welcome for invite/checkout flow
+  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/create-account') && !request.nextUrl.pathname.startsWith('/welcome')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -47,7 +52,8 @@ export async function proxy(request: NextRequest) {
       .single()
 
     // If user is not a righthand, sign them out and redirect to login
-    if (profile?.role !== 'righthand') {
+    // UNLESS they're on the create-account or welcome page (checkout flow)
+    if (profile?.role !== 'righthand' && !request.nextUrl.pathname.startsWith('/create-account') && !request.nextUrl.pathname.startsWith('/welcome')) {
       await supabase.auth.signOut()
       const url = request.nextUrl.clone()
       url.pathname = '/login'

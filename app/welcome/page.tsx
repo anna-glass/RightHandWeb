@@ -6,8 +6,18 @@ import { cn } from "@/lib/utils"
 
 export default function WelcomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-b from-background to-muted">
-      <div className="w-full max-w-lg bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg text-center">
+    <div className="relative flex min-h-screen items-center justify-center p-4 overflow-hidden">
+      {/* Image Background */}
+      <div
+        className="absolute inset-0 w-full h-full bg-cover bg-center"
+        style={{ backgroundImage: 'url(/background.png)' }}
+      />
+
+      {/* Dark Overlay */}
+      <div className="absolute inset-0 bg-black/60" />
+
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-lg bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg text-center">
         <div>
           <img src="/righthandlogo.png" alt="Right Hand" className="h-20 w-auto mx-auto mb-6" />
           <h1 className={cn(typography.h2, "mb-4")}>
