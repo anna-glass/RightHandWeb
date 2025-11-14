@@ -29,20 +29,20 @@ export default function LoginPage() {
       })
       if (authError) throw authError
 
-      // Check if user has righthand role
+      // Check if user exists in righthands table
       if (authData.user) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
+        const { data: righthand, error: righthandError } = await supabase
+          .from('righthands')
+          .select('id')
           .eq('id', authData.user.id)
-          .single()
+          .maybeSingle()
 
-        if (profileError) throw profileError
+        if (righthandError) throw righthandError
 
-        if (profile.role !== 'righthand') {
+        if (!righthand) {
           // Sign out the user immediately
           await supabase.auth.signOut()
-          throw new Error('Access denied. Only Right Hand users can log in.')
+          throw new Error('Access denied. Only Right Hand staff can log in to this portal.')
         }
       }
 

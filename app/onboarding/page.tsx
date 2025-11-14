@@ -42,9 +42,6 @@ export default function OnboardingPage() {
   const [transcribing, setTranscribing] = React.useState(false)
   const [transcribed, setTranscribed] = React.useState(false)
 
-  // Calendar events state
-  const [calendarEvents, setCalendarEvents] = React.useState<any[]>([])
-  const [fetchingEvents, setFetchingEvents] = React.useState(false)
 
   const startRecording = async () => {
     try {
@@ -130,25 +127,6 @@ export default function OnboardingPage() {
     }
   }
 
-  // Fetch calendar events
-  const fetchCalendarEvents = async () => {
-    setFetchingEvents(true)
-    try {
-      const response = await fetch('/api/calendar/events')
-      if (!response.ok) {
-        throw new Error('Failed to fetch events')
-      }
-      const { events } = await response.json()
-      setCalendarEvents(events || [])
-    } catch (err) {
-      console.error('Error fetching calendar events:', err)
-      // Don't alert, just show empty events
-      setCalendarEvents([])
-    } finally {
-      setFetchingEvents(false)
-    }
-  }
-
   // Check if onboarding is already completed
   React.useEffect(() => {
     const checkOnboardingStatus = async () => {
@@ -191,8 +169,6 @@ export default function OnboardingPage() {
           setCalendarConnected(true)
           // Set to calendar step (index 2)
           setCurrentStep(2)
-          // Fetch calendar events
-          await fetchCalendarEvents()
           // Remove the query param from URL
           window.history.replaceState({}, '', '/onboarding')
         }
@@ -285,53 +261,10 @@ export default function OnboardingPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                <p className={cn(typography.body, "text-green-600")}>
-                  ✓ Google Calendar connected successfully!
-                </p>
-              </div>
-
-              {fetchingEvents ? (
-                <p className={cn(typography.caption, "text-muted-foreground text-center")}>
-                  Loading your upcoming events...
-                </p>
-              ) : calendarEvents.length > 0 ? (
-                <div className="space-y-2">
-                  <p className={cn(typography.label, "text-muted-foreground")}>
-                    Your next {calendarEvents.length} events:
-                  </p>
-                  <div className="max-h-[300px] overflow-y-auto space-y-2">
-                    {calendarEvents.map((event: any, index: number) => {
-                      const start = event.start?.dateTime ?? event.start?.date
-                      const startDate = new Date(start)
-                      const formattedDate = startDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: event.start?.dateTime ? 'numeric' : undefined,
-                        minute: event.start?.dateTime ? '2-digit' : undefined,
-                      })
-                      return (
-                        <div
-                          key={index}
-                          className="p-3 bg-sidebar rounded-lg border border-border"
-                        >
-                          <p className={cn(typography.body, "font-medium")}>
-                            {event.summary || 'No title'}
-                          </p>
-                          <p className={cn(typography.caption, "text-muted-foreground")}>
-                            {formattedDate}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <p className={cn(typography.caption, "text-muted-foreground text-center")}>
-                  No upcoming events found.
-                </p>
-              )}
+            <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+              <p className={cn(typography.body, "text-green-600")}>
+                ✓ Google Calendar connected successfully!
+              </p>
             </div>
           )}
         </div>

@@ -15,8 +15,16 @@ import {
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import type { Member } from "./members-table"
-import { useAddresses, updateProfile } from "@/lib/supabase/hooks"
+import { useAddresses, useTasks, useOnboardingResponse, updateProfile } from "@/lib/supabase/hooks"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface MemberDetailProps {
   member: Member
@@ -35,6 +43,12 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
 
   // Fetch addresses for this member
   const { addresses, loading: addressesLoading } = useAddresses(member.id)
+
+  // Fetch tasks for this member
+  const { tasks, loading: tasksLoading } = useTasks(member.id)
+
+  // Fetch onboarding response for this member
+  const { onboardingResponse, loading: onboardingLoading } = useOnboardingResponse(member.id)
 
   // Profile info
   const profilePicture = member.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.id}`
@@ -302,6 +316,90 @@ export function MemberDetail({ member, onBack }: MemberDetailProps) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Tasks */}
+      <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-4")}>Tasks</h4>
+        {tasksLoading ? (
+          <p className={cn(typography.body, "text-muted-foreground")}>Loading tasks...</p>
+        ) : tasks.length === 0 ? (
+          <p className={cn(typography.body, "text-muted-foreground")}>No tasks found</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className={cn(typography.tableHeader)}>Title</TableHead>
+                <TableHead className={cn(typography.tableHeader)}>Status</TableHead>
+                <TableHead className={cn(typography.tableHeader)}>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tasks.map((task) => (
+                <TableRow key={task.id}>
+                  <TableCell className={cn(typography.tableCell)}>
+                    {task.title || 'Untitled'}
+                  </TableCell>
+                  <TableCell className={cn(typography.tableCell, "capitalize")}>
+                    {task.status || 'open'}
+                  </TableCell>
+                  <TableCell className={cn(typography.tableCell)}>
+                    {formatDate(task.created_at)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      {/* Onboarding Responses */}
+      <div className="bg-muted p-6 rounded-lg">
+        <h4 className={cn(typography.bodySmall, "font-medium mb-4")}>Onboarding Responses</h4>
+        {onboardingLoading ? (
+          <p className={cn(typography.body, "text-muted-foreground")}>Loading onboarding responses...</p>
+        ) : !onboardingResponse ? (
+          <p className={cn(typography.body, "text-muted-foreground")}>No onboarding responses found</p>
+        ) : (
+          <div className="space-y-4">
+            {onboardingResponse.typical_week && (
+              <div>
+                <p className={cn(typography.label, "text-muted-foreground mb-1")}>Typical Week</p>
+                <p className={cn(typography.body, "whitespace-pre-wrap")}>{onboardingResponse.typical_week}</p>
+              </div>
+            )}
+            <div className="flex gap-6">
+              <div>
+                <p className={cn(typography.label, "text-muted-foreground mb-1")}>Calendar Connected</p>
+                <p className={cn(typography.body)}>{onboardingResponse.calendar_connected ? 'Yes' : 'No'}</p>
+              </div>
+              {onboardingResponse.completed_at && (
+                <div>
+                  <p className={cn(typography.label, "text-muted-foreground mb-1")}>Completed At</p>
+                  <p className={cn(typography.body)}>{formatDate(onboardingResponse.completed_at)}</p>
+                </div>
+              )}
+            </div>
+            {onboardingResponse.home_address && (
+              <div>
+                <p className={cn(typography.label, "text-muted-foreground mb-1")}>Home Address</p>
+                <p className={cn(typography.body)}>{onboardingResponse.home_address}</p>
+              </div>
+            )}
+            {onboardingResponse.work_address && (
+              <div>
+                <p className={cn(typography.label, "text-muted-foreground mb-1")}>Work Address</p>
+                <p className={cn(typography.body)}>{onboardingResponse.work_address}</p>
+              </div>
+            )}
+            {onboardingResponse.frequent_businesses && (
+              <div>
+                <p className={cn(typography.label, "text-muted-foreground mb-1")}>Frequent Businesses</p>
+                <p className={cn(typography.body, "whitespace-pre-wrap")}>{onboardingResponse.frequent_businesses}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

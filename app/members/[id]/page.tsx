@@ -24,6 +24,7 @@ export default function MemberDetailPage() {
       <SidebarProvider>
         <AppSidebar activeView="members" onViewChange={(view) => {
           if (view === "chats") router.push("/chats")
+          else if (view === "righthands") router.push("/righthands")
           else router.push("/members")
         }} />
         <SidebarInset className="h-screen">
@@ -42,6 +43,7 @@ export default function MemberDetailPage() {
       <SidebarProvider>
         <AppSidebar activeView="members" onViewChange={(view) => {
           if (view === "chats") router.push("/chats")
+          else if (view === "righthands") router.push("/righthands")
           else router.push("/members")
         }} />
         <SidebarInset className="h-screen">

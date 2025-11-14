@@ -8,13 +8,17 @@ import type { Database } from './types'
 const supabase = createClient()
 
 type Profile = Database['public']['Tables']['profiles']['Row']
+type Righthand = Database['public']['Tables']['righthands']['Row']
 type Message = Database['public']['Tables']['messages']['Row']
 type Task = Database['public']['Tables']['tasks']['Row']
 type Address = Database['public']['Tables']['addresses']['Row']
+type OnboardingResponse = Database['public']['Tables']['onboarding_responses']['Row']
 
 // Profiles Hooks
 export function useProfiles() {
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [onboardedProfiles, setOnboardedProfiles] = useState<Profile[]>([])
+  const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -28,7 +32,16 @@ export function useProfiles() {
           .order('first_name', { ascending: true })
 
         if (error) throw error
-        setProfiles(data || [])
+
+        const allProfiles = data || []
+        setProfiles(allProfiles)
+
+        // Split profiles into onboarded and pending
+        const onboarded = allProfiles.filter(p => p.onboarding_completed === true)
+        const pending = allProfiles.filter(p => p.onboarding_completed !== true)
+
+        setOnboardedProfiles(onboarded)
+        setPendingProfiles(pending)
       } catch (err) {
         setError(err as Error)
       } finally {
@@ -55,7 +68,7 @@ export function useProfiles() {
     }
   }, [])
 
-  return { profiles, loading, error }
+  return { profiles, onboardedProfiles, pendingProfiles, loading, error }
 }
 
 export function useProfile(id: string | null) {
@@ -94,6 +107,90 @@ export function useProfile(id: string | null) {
   }, [id])
 
   return { profile, loading, error }
+}
+
+// Righthands Hooks
+export function useRighthands() {
+  const [righthands, setRighthands] = useState<Righthand[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    async function fetchRighthands() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('righthands')
+          .select('*')
+          .order('first_name', { ascending: true })
+
+        if (error) throw error
+        setRighthands(data || [])
+      } catch (err) {
+        setError(err as Error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRighthands()
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('righthands-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'righthands' },
+        () => {
+          fetchRighthands()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  return { righthands, loading, error }
+}
+
+export function useRighthand(id: string | null) {
+  const [righthand, setRighthand] = useState<Righthand | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    if (!id) {
+      setRighthand(null)
+      setLoading(false)
+      return
+    }
+
+    const righthandId = id // Capture the non-null id
+
+    async function fetchRighthand() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('righthands')
+          .select('*')
+          .eq('id', righthandId)
+          .single()
+
+        if (error) throw error
+        setRighthand(data)
+      } catch (err) {
+        setError(err as Error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRighthand()
+  }, [id])
+
+  return { righthand, loading, error }
 }
 
 // Messages Hooks
@@ -274,6 +371,66 @@ export function useAddresses(userId: string | null) {
   }, [userId])
 
   return { addresses, loading, error }
+}
+
+// Onboarding Responses Hook
+export function useOnboardingResponse(userId: string | null) {
+  const [onboardingResponse, setOnboardingResponse] = useState<OnboardingResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    if (!userId) {
+      setOnboardingResponse(null)
+      setLoading(false)
+      return
+    }
+
+    const uid = userId // Capture the non-null id
+
+    async function fetchOnboardingResponse() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('onboarding_responses')
+          .select('*')
+          .eq('user_id', uid)
+          .maybeSingle()
+
+        if (error) throw error
+        setOnboardingResponse(data)
+      } catch (err) {
+        setError(err as Error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOnboardingResponse()
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel(`onboarding-response-${uid}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'onboarding_responses',
+          filter: `user_id=eq.${uid}`
+        },
+        () => {
+          fetchOnboardingResponse()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
+
+  return { onboardingResponse, loading, error }
 }
 
 // Mutation functions

@@ -98,6 +98,7 @@ export default function ChatsPage() {
       <SidebarProvider>
         <AppSidebar activeView="chats" onViewChange={(view) => {
           if (view === "members") router.push("/members")
+          else if (view === "righthands") router.push("/righthands")
         }} />
         <SidebarInset className="h-screen">
           <PageLayout>

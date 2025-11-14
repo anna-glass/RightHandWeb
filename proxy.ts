@@ -43,28 +43,41 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is authenticated, check their role
+  // If user is authenticated, check if they're a righthand
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
+    const { data: righthand } = await supabase
+      .from('righthands')
+      .select('id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    // If user is not a righthand, sign them out and redirect to login
-    // UNLESS they're on the create-account, onboarding, or welcome page (signup flow)
-    if (profile?.role !== 'righthand' && !request.nextUrl.pathname.startsWith('/create-account') && !request.nextUrl.pathname.startsWith('/onboarding') && !request.nextUrl.pathname.startsWith('/welcome')) {
-      await supabase.auth.signOut()
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
+    // If user is not a righthand and not on member-allowed pages, redirect appropriately
+    if (!righthand) {
+      // Members should only access create-account, onboarding, and welcome pages
+      if (!request.nextUrl.pathname.startsWith('/create-account') &&
+          !request.nextUrl.pathname.startsWith('/onboarding') &&
+          !request.nextUrl.pathname.startsWith('/welcome')) {
+        // Member trying to access admin portal, redirect to welcome
+        const url = request.nextUrl.clone()
+        url.pathname = '/welcome'
+        return NextResponse.redirect(url)
+      }
+    } else {
+      // Righthand user - redirect from login to members page
+      if (request.nextUrl.pathname.startsWith('/login')) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/members'
+        return NextResponse.redirect(url)
+      }
 
-    // If user is logged in and tries to access login, redirect to members
-    if (request.nextUrl.pathname.startsWith('/login')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/members'
-      return NextResponse.redirect(url)
+      // Prevent righthands from accessing member-only pages
+      if (request.nextUrl.pathname.startsWith('/create-account') ||
+          request.nextUrl.pathname.startsWith('/onboarding') ||
+          request.nextUrl.pathname.startsWith('/welcome')) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/members'
+        return NextResponse.redirect(url)
+      }
     }
   }
 

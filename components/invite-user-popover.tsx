@@ -12,9 +12,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { inviteUser } from "@/app/actions/invite-user"
-import type { Database } from "@/lib/supabase/types"
-
-type UserRole = Database['public']['Enums']['user_role']
 
 export function InviteUserPopover() {
   const [open, setOpen] = React.useState(false)
@@ -30,7 +27,7 @@ export function InviteUserPopover() {
     setSuccess(false)
 
     try {
-      const result = await inviteUser(email, "member")
+      const result = await inviteUser(email)
 
       if (!result.success) {
         setError(result.error || "Failed to invite user")
@@ -60,45 +57,21 @@ export function InviteUserPopover() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <h3 className={cn(typography.bodySmall, "font-semibold mb-1")}>Invite New Member</h3>
-            <p className={cn(typography.caption, "text-muted-foreground")}>
-              Send an invitation email to a new member.
-            </p>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Input
+            id="email"
+            type="text"
+            placeholder="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+          />
 
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label htmlFor="email" className={cn(typography.label, "text-xs")}>
-                Email Address
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                className="h-9"
-              />
-            </div>
-
-            {error && (
-              <div className="text-destructive text-xs p-2 bg-destructive/10 rounded-md">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="text-green-600 text-xs p-2 bg-green-600/10 rounded-md">
-                Invitation sent!
-              </div>
-            )}
-          </div>
-
-          <Button type="submit" disabled={loading} className="w-full h-9">
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Sending..." : "Send Invitation"}
           </Button>
         </form>

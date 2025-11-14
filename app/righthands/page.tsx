@@ -3,30 +3,29 @@
 import * as React from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-import { MembersTable } from "@/components/members-table"
+import { RighthandsTable } from "@/components/righthands-table"
 import { PageLayout } from "@/components/page-layout"
-import { InviteUserPopover } from "@/components/invite-user-popover"
 import { useRouter } from "next/navigation"
-import type { Member } from "@/components/members-table"
+import type { Righthand } from "@/components/righthands-table"
 
-export default function MembersPage() {
+export default function RighthandsPage() {
   const router = useRouter()
 
-  const handleMemberClick = (member: Member) => {
-    router.push(`/members/${member.id}`)
+  const handleRighthandClick = (righthand: Righthand) => {
+    router.push(`/righthands/${righthand.id}`)
   }
 
   return (
     <SidebarProvider>
-      <AppSidebar activeView="members" onViewChange={(view) => {
+      <AppSidebar activeView="righthands" onViewChange={(view) => {
         if (view === "chats") router.push("/chats")
-        else if (view === "righthands") router.push("/righthands")
-        else router.push("/members")
+        else if (view === "members") router.push("/members")
+        else router.push("/righthands")
       }} />
       <SidebarInset className="h-screen">
         <PageLayout>
           <div className="w-full p-6">
-            <MembersTable onMemberClick={handleMemberClick} InviteButton={<InviteUserPopover />} />
+            <RighthandsTable onRighthandClick={handleRighthandClick} />
           </div>
         </PageLayout>
       </SidebarInset>

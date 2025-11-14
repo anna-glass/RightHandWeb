@@ -20,6 +20,7 @@ export default function ChatPage() {
       <SidebarProvider>
         <AppSidebar activeView="chats" onViewChange={(view) => {
           if (view === "members") router.push("/members")
+          else if (view === "righthands") router.push("/righthands")
           else router.push("/chats")
         }} />
         <SidebarInset className="h-screen">
@@ -38,6 +39,7 @@ export default function ChatPage() {
       <SidebarProvider>
         <AppSidebar activeView="chats" onViewChange={(view) => {
           if (view === "members") router.push("/members")
+          else if (view === "righthands") router.push("/righthands")
           else router.push("/chats")
         }} />
         <SidebarInset className="h-screen">

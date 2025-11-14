@@ -1,11 +1,8 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { Database } from '@/lib/supabase/types'
 
-type UserRole = Database['public']['Enums']['user_role']
-
-export async function inviteUser(email: string, role: UserRole) {
+export async function inviteUser(email: string) {
   try {
     const supabase = createAdminClient()
 
@@ -15,24 +12,20 @@ export async function inviteUser(email: string, role: UserRole) {
 
     // Invite the user with the redirect URL
     const { data: authData, error: authError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      redirectTo: redirectTo,
-      data: {
-        role // Pass the role in user metadata
-      }
+      redirectTo: redirectTo
     })
 
     if (authError) {
       return { success: false, error: authError.message }
     }
 
-    // Create the profile for the invited user with the specified role
+    // Create the profile for the invited member (all invited users are members)
     if (authData.user) {
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
           id: authData.user.id,
           email: email,
-          role: role,
           first_name: null,
           last_name: null,
           hours_saved_this_month: 0,
