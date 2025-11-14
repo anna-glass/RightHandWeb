@@ -131,25 +131,40 @@ export default function OnboardingPage() {
   React.useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+        console.log('Onboarding - Current user:', user?.email)
+        console.log('Onboarding - User ID:', user?.id)
+
+        if (userError) {
+          console.error('Onboarding - User error:', userError)
+        }
 
         if (!user) {
+          console.log('Onboarding - No user found')
           setCheckingOnboarding(false)
           return
         }
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('id', user.id)
           .single()
 
+        console.log('Onboarding - Profile:', profile)
+        if (profileError) {
+          console.error('Onboarding - Profile error:', profileError)
+        }
+
         if (profile?.onboarding_completed) {
-          // Already completed onboarding, redirect to welcome
-          router.push('/welcome')
+          // Already completed onboarding, redirect to profile
+          console.log('Onboarding - Already completed, redirecting to profile')
+          router.push('/profile')
           return
         }
 
+        console.log('Onboarding - Not completed, showing onboarding flow')
         setCheckingOnboarding(false)
       } catch (err) {
         console.error('Error checking onboarding status:', err)
@@ -362,8 +377,8 @@ export default function OnboardingPage() {
 
       if (profileError) throw profileError
 
-      // Redirect to welcome page
-      router.push('/welcome')
+      // Redirect to profile page
+      router.push('/profile')
     } catch (err: any) {
       console.error('Failed to save onboarding:', err)
       alert('Failed to save onboarding responses. Please try again.')

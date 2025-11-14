@@ -8,8 +8,6 @@ import type { Database } from './types'
 const supabase = createClient()
 
 type Profile = Database['public']['Tables']['profiles']['Row']
-type Righthand = Database['public']['Tables']['righthands']['Row']
-type Message = Database['public']['Tables']['messages']['Row']
 type Task = Database['public']['Tables']['tasks']['Row']
 type Address = Database['public']['Tables']['addresses']['Row']
 type OnboardingResponse = Database['public']['Tables']['onboarding_responses']['Row']
@@ -107,150 +105,6 @@ export function useProfile(id: string | null) {
   }, [id])
 
   return { profile, loading, error }
-}
-
-// Righthands Hooks
-export function useRighthands() {
-  const [righthands, setRighthands] = useState<Righthand[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    async function fetchRighthands() {
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('righthands')
-          .select('*')
-          .order('first_name', { ascending: true })
-
-        if (error) throw error
-        setRighthands(data || [])
-      } catch (err) {
-        setError(err as Error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchRighthands()
-
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel('righthands-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'righthands' },
-        () => {
-          fetchRighthands()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
-
-  return { righthands, loading, error }
-}
-
-export function useRighthand(id: string | null) {
-  const [righthand, setRighthand] = useState<Righthand | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    if (!id) {
-      setRighthand(null)
-      setLoading(false)
-      return
-    }
-
-    const righthandId = id // Capture the non-null id
-
-    async function fetchRighthand() {
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('righthands')
-          .select('*')
-          .eq('id', righthandId)
-          .single()
-
-        if (error) throw error
-        setRighthand(data)
-      } catch (err) {
-        setError(err as Error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchRighthand()
-  }, [id])
-
-  return { righthand, loading, error }
-}
-
-// Messages Hooks
-export function useMessages(userId: string | null) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-
-  useEffect(() => {
-    if (!userId) {
-      setMessages([])
-      setLoading(false)
-      return
-    }
-
-    const uid = userId // Capture the non-null id
-
-    async function fetchMessages() {
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('user_id', uid)
-          .order('created_at', { ascending: true })
-
-        if (error) throw error
-        setMessages(data || [])
-      } catch (err) {
-        setError(err as Error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchMessages()
-
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel(`messages-${uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-          filter: `user_id=eq.${uid}`
-        },
-        () => {
-          fetchMessages()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [userId])
-
-  return { messages, loading, error }
 }
 
 // Tasks Hooks
@@ -464,17 +318,6 @@ export async function deleteProfile(id: string) {
     .eq('id', id)
 
   if (error) throw error
-}
-
-export async function createMessage(message: Database['public']['Tables']['messages']['Insert']) {
-  const { data, error } = await supabase
-    .from('messages')
-    .insert(message)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
 }
 
 export async function createTask(task: Database['public']['Tables']['tasks']['Insert']) {

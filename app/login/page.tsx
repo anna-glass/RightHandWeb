@@ -23,32 +23,20 @@ export default function LoginPage() {
     setError(null)
 
     try {
+      console.log('Attempting login with email:', email)
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (authError) throw authError
 
-      // Check if user exists in righthands table
-      if (authData.user) {
-        const { data: righthand, error: righthandError } = await supabase
-          .from('righthands')
-          .select('id')
-          .eq('id', authData.user.id)
-          .maybeSingle()
+      console.log('Login successful for user:', authData.user?.email)
+      console.log('User ID:', authData.user?.id)
 
-        if (righthandError) throw righthandError
-
-        if (!righthand) {
-          // Sign out the user immediately
-          await supabase.auth.signOut()
-          throw new Error('Access denied. Only Right Hand staff can log in to this portal.')
-        }
-      }
-
-      router.push("/members")
+      router.push("/")
       router.refresh()
     } catch (err: any) {
+      console.error('Login error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -109,6 +97,19 @@ export default function LoginPage() {
             {loading ? "Loading..." : "Sign in"}
           </Button>
         </form>
+
+        <div className="text-center">
+          <p className={cn(typography.body, "text-muted-foreground mb-2")}>
+            Don't have an account?
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => router.push("/create-account")}
+          >
+            Sign up
+          </Button>
+        </div>
       </div>
     </div>
   )

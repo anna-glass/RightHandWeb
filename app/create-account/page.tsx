@@ -26,75 +26,9 @@ export default function CreateAccountPage() {
   const supabase = createClient()
 
   React.useEffect(() => {
-    // When Supabase redirects after invite, it puts access_token in URL hash
-    // The Supabase client automatically detects this and creates a session
-    // We just need to wait for it to finish
-
-    let mounted = true
-
-    const initSession = async () => {
-      // Check if there's an access token in the hash (from invite flow)
-      const hasAccessToken = window.location.hash.includes('access_token')
-
-      if (hasAccessToken) {
-        // Extract tokens from URL hash
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const accessToken = hashParams.get('access_token')
-        const refreshToken = hashParams.get('refresh_token')
-
-        if (accessToken && refreshToken) {
-          try {
-            // Manually set the session with the tokens from the URL
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken
-            })
-
-            if (error) throw error
-
-            if (data.user?.email) {
-              setEmail(data.user.email)
-              setError(null)
-              setVerifying(false)
-              // Clean up the URL hash
-              window.history.replaceState(null, '', window.location.pathname)
-              return
-            }
-          } catch (err: any) {
-            setError('Could not verify invitation. Please try again or request a new invitation.')
-            setVerifying(false)
-            return
-          }
-        }
-
-        // Timeout fallback
-        setTimeout(() => {
-          if (!mounted) return
-          if (!email) {
-            setError('Could not verify invitation. Please try again or request a new invitation.')
-            setVerifying(false)
-          }
-        }, 5000)
-      } else {
-        // No access token in URL - check for existing session
-        const { data: { session } } = await supabase.auth.getSession()
-
-        if (session?.user?.email) {
-          setEmail(session.user.email)
-          setVerifying(false)
-        } else {
-          setError('Invalid invitation link. Please request a new invitation.')
-          setVerifying(false)
-        }
-      }
-    }
-
-    initSession()
-
-    return () => {
-      mounted = false
-    }
-  }, [supabase.auth])
+    // Allow direct sign-ups - no invite required
+    setVerifying(false)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -116,34 +50,46 @@ export default function CreateAccountPage() {
     }
 
     try {
-      // Update the user's password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password
+      console.log('Create account - Attempting sign up for email:', email)
+
+      // Sign up the user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: password,
       })
 
-      if (updateError) throw updateError
-
-      // Get the current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-      if (userError || !user) {
-        throw new Error('Not authenticated. Please try logging in again.')
+      if (signUpError) {
+        console.error('Create account - Sign up error:', signUpError)
+        throw signUpError
       }
 
-      console.log('Current user ID:', user.id)
+      if (!signUpData.user) {
+        throw new Error('Failed to create account')
+      }
 
-      // Check if profile exists and user owns it
-      const { data: existingProfile, error: fetchError } = await supabase
+      const user = signUpData.user
+      console.log('Create account - User created successfully:', user.email)
+      console.log('Create account - User ID:', user.id)
+
+      // Create profile for the new user
+      console.log('Create account - Creating profile for user')
+      const { error: createProfileError } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+        .insert({
+          id: user.id,
+          email: email,
+          first_name: firstName,
+          last_name: lastName,
+          phone_number: phoneNumber,
+          onboarding_completed: false
+        })
 
-      console.log('Existing profile:', existingProfile)
-      console.log('Fetch error:', fetchError)
-
-      if (fetchError) {
-        throw new Error(`Failed to fetch profile: ${fetchError.message}`)
+      if (createProfileError) {
+        console.error('Create account - Profile creation error:', createProfileError)
+        console.log('Create account - Profile might already exist from a trigger, will update instead')
+        // Profile might already exist from a trigger, so we'll update instead
+      } else {
+        console.log('Create account - Profile created successfully')
       }
 
       let avatarUrl: string | undefined = undefined
@@ -201,11 +147,13 @@ export default function CreateAccountPage() {
         throw new Error(profileUpdateError.message)
       }
 
-      console.log('Profile update successful, redirecting to onboarding')
+      console.log('Create account - Profile update successful, redirecting to onboarding')
 
       // Redirect to onboarding
       router.push('/onboarding')
+      router.refresh()
     } catch (err: any) {
+      console.error('Create account - Error:', err)
       setError(err.message || "Failed to complete account setup")
     } finally {
       setLoading(false)
@@ -270,12 +218,10 @@ export default function CreateAccountPage() {
                 id="email"
                 type="email"
                 value={email}
-                disabled
-                className="bg-muted"
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
               />
-              <p className={cn(typography.caption, "text-muted-foreground mt-1")}>
-                Your email address is confirmed
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -381,10 +327,24 @@ export default function CreateAccountPage() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading || !email}>
-            {loading ? "Creating Account..." : "Continue to Onboarding"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Account"}
           </Button>
         </form>
+
+        <div className="text-center">
+          <p className={cn(typography.body, "text-muted-foreground mb-2")}>
+            Already have an account?
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => router.push("/login")}
+            disabled={loading}
+          >
+            Sign in
+          </Button>
+        </div>
       </div>
     </div>
   )
