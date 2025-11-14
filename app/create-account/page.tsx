@@ -201,30 +201,10 @@ export default function CreateAccountPage() {
         throw new Error(profileUpdateError.message)
       }
 
-      console.log('Profile update successful, about to call checkout API')
+      console.log('Profile update successful, redirecting to onboarding')
 
-      // Redirect to Stripe checkout
-      console.log('Calling /api/stripe/checkout...')
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      console.log('Fetch completed, response:', response)
-
-      if (!response.ok) {
-        const errorData = await response.text()
-        throw new Error(`Failed to create checkout session: ${errorData}`)
-      }
-
-      const { url } = await response.json()
-
-      if (url) {
-        window.location.href = url
-      } else {
-        throw new Error('No checkout URL returned')
-      }
+      // Redirect to onboarding
+      router.push('/onboarding')
     } catch (err: any) {
       setError(err.message || "Failed to complete account setup")
     } finally {
@@ -402,7 +382,7 @@ export default function CreateAccountPage() {
           )}
 
           <Button type="submit" className="w-full" disabled={loading || !email}>
-            {loading ? "Creating Account..." : "Continue to Billing"}
+            {loading ? "Creating Account..." : "Continue to Onboarding"}
           </Button>
         </form>
       </div>
