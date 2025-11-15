@@ -9,6 +9,10 @@ export async function GET(request: NextRequest) {
   const isSignup = requestUrl.searchParams.get('signup') === 'true'
   const origin = requestUrl.origin
 
+  console.log('Auth callback - URL:', requestUrl.toString())
+  console.log('Auth callback - Code present:', !!code)
+  console.log('Auth callback - Is signup:', isSignup)
+
   if (code) {
     const supabase = await createClient()
 
@@ -62,9 +66,9 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Redirect to onboarding for new users
-      console.log('Auth callback - Redirecting to onboarding')
-      return NextResponse.redirect(`${origin}/onboarding`)
+      // Redirect to verified page for new users
+      console.log('Auth callback - Redirecting to verified page')
+      return NextResponse.redirect(`${origin}/auth/verified`)
     } else {
       console.log('Auth callback - Sign in flow detected')
 

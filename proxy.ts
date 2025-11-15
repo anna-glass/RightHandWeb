@@ -27,8 +27,8 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Skip middleware for API routes
-  if (request.nextUrl.pathname.startsWith('/api/')) {
+  // Skip middleware for API routes and auth callback
+  if (request.nextUrl.pathname.startsWith('/api/') || request.nextUrl.pathname.startsWith('/auth/')) {
     return supabaseResponse
   }
 
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/create-account']
+  const publicRoutes = ['/login', '/create-account', '/confirm-email']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
   // Redirect to login if not authenticated and trying to access protected route
@@ -46,10 +46,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is authenticated and on login page, redirect to home
+  // If user is authenticated and on login page, check onboarding status
   if (user && request.nextUrl.pathname.startsWith('/login')) {
+    // Check if user has completed onboarding
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    // Redirect to onboarding if not completed, otherwise home
+    url.pathname = profile?.onboarding_completed ? '/' : '/onboarding'
     return NextResponse.redirect(url)
   }
 

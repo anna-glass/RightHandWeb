@@ -28,6 +28,10 @@ export default function OnboardingPage() {
   const [checkingOnboarding, setCheckingOnboarding] = React.useState(true)
 
   // Form state
+  const [firstName, setFirstName] = React.useState("")
+  const [lastName, setLastName] = React.useState("")
+  const [email, setEmail] = React.useState("")
+  const [phoneNumber, setPhoneNumber] = React.useState("")
   const [typicalWeek, setTypicalWeek] = React.useState("")
   const [calendarConnected, setCalendarConnected] = React.useState(false)
   const [addresses, setAddresses] = React.useState({
@@ -127,7 +131,7 @@ export default function OnboardingPage() {
     }
   }
 
-  // Check if onboarding is already completed
+  // Check if onboarding is already completed and prefill email
   React.useEffect(() => {
     const checkOnboardingStatus = async () => {
       try {
@@ -146,9 +150,14 @@ export default function OnboardingPage() {
           return
         }
 
+        // Prefill email from user
+        if (user.email) {
+          setEmail(user.email)
+        }
+
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('onboarding_completed')
+          .select('onboarding_completed, first_name, last_name, phone_number')
           .eq('id', user.id)
           .single()
 
@@ -156,6 +165,11 @@ export default function OnboardingPage() {
         if (profileError) {
           console.error('Onboarding - Profile error:', profileError)
         }
+
+        // Prefill existing profile data if available
+        if (profile?.first_name) setFirstName(profile.first_name)
+        if (profile?.last_name) setLastName(profile.last_name)
+        if (profile?.phone_number) setPhoneNumber(profile.phone_number)
 
         if (profile?.onboarding_completed) {
           // Already completed onboarding, redirect to profile
@@ -196,12 +210,45 @@ export default function OnboardingPage() {
     {
       title: "Welcome to Right Hand!",
       content: (
-        <div className="space-y-4">
+        <div className="space-y-6">
           <p className="text-lg text-muted-foreground">
             I'm Anna, the first (and only) personal assistant behind Right Hand - so whenever you send a message,
             I'll be the one making sure it gets done! Over time, I'll get to know you and how to do tasks exactly
             how you would do them - and your responses during the onboarding give me a head start.
           </p>
+          <p className="text-lg text-muted-foreground">
+            Let's start with the basics:
+          </p>
+          <div className="space-y-3">
+            <Input
+              type="text"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+            <Input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              disabled
+              className="bg-muted"
+            />
+            <Input
+              type="tel"
+              placeholder="Phone Number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+            />
+          </div>
         </div>
       )
     },
@@ -359,8 +406,11 @@ export default function OnboardingPage() {
 
       if (onboardingError) throw onboardingError
 
-      // Update profile with Google Calendar tokens if connected and mark onboarding as completed
+      // Update profile with user info, Google Calendar tokens if connected, and mark onboarding as completed
       const profileUpdate: any = {
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneNumber,
         onboarding_completed: true,
         updated_at: new Date().toISOString()
       }
@@ -389,6 +439,9 @@ export default function OnboardingPage() {
 
   const canProceed = () => {
     switch (currentStep) {
+      case 0:
+        // First step - require first name, last name, and phone number
+        return firstName.trim() !== "" && lastName.trim() !== "" && phoneNumber.trim() !== ""
       case 2:
         // Calendar step - can skip
         return true
