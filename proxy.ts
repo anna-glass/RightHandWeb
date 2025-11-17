@@ -36,28 +36,13 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/create-account', '/confirm-email']
+  const publicRoutes = ['/', '/download', '/onboarding']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
-  // Redirect to login if not authenticated and trying to access protected route
+  // Redirect to home if not authenticated and trying to access protected route
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  // If user is authenticated and on login page, check onboarding status
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    // Check if user has completed onboarding
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', user.id)
-      .single()
-
-    const url = request.nextUrl.clone()
-    // Redirect to onboarding if not completed, otherwise home
-    url.pathname = profile?.onboarding_completed ? '/' : '/onboarding'
+    url.pathname = '/'
     return NextResponse.redirect(url)
   }
 

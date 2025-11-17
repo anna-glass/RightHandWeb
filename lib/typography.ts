@@ -4,26 +4,26 @@
  */
 
 export const typography = {
-  // Heading styles
-  h1: "font-sans text-4xl font-bold text-foreground",
-  h2: "font-sans text-3xl font-semibold text-foreground",
-  h3: "font-sans text-2xl font-semibold text-foreground",
-  h4: "font-sans text-xl font-semibold text-foreground",
-  h5: "font-sans text-lg font-semibold text-foreground",
+  // Heading styles - all font-medium, moderate sizes
+  h1: "font-sans text-5xl font-medium text-foreground",
+  h2: "font-sans text-4xl font-medium text-foreground",
+  h3: "font-sans text-3xl font-medium text-foreground",
+  h4: "font-sans text-2xl font-medium text-foreground",
+  h5: "font-sans text-xl font-medium text-foreground",
 
-  // Body text styles
-  body: "font-sans text-base text-foreground",
-  bodyLarge: "font-sans text-lg text-foreground",
-  bodySmall: "font-sans text-sm text-foreground",
+  // Body text styles - all font-normal, larger sizes
+  body: "font-sans text-2xl font-normal text-foreground",
+  bodyLarge: "font-sans text-3xl font-normal text-foreground",
+  bodySmall: "font-sans text-xl font-normal text-foreground",
 
   // Label and caption styles
-  label: "font-sans text-sm font-medium text-foreground",
-  caption: "font-sans text-xs text-muted-foreground",
+  label: "font-sans text-xl font-normal text-foreground",
+  caption: "font-sans text-lg font-normal text-muted-foreground",
 
   // Monospace for code/data
-  mono: "font-mono text-sm text-foreground",
+  mono: "font-mono text-xl font-normal text-foreground",
 
   // Table specific typography
-  tableHeader: "font-sans text-base font-medium text-muted-foreground",
-  tableCell: "font-sans text-base text-foreground",
+  tableHeader: "font-sans text-2xl font-normal text-muted-foreground",
+  tableCell: "font-sans text-2xl font-normal text-foreground",
 } as const;
