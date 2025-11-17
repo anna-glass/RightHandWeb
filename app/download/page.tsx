@@ -15,7 +15,7 @@ export default function DownloadPage() {
             <Image src="/righthandlogo.png" alt="Right Hand" width={192} height={192} />
           </div>
           <h1 className={cn(typography.h2)}>
-            You're all set!
+            You&apos;re all set!
           </h1>
 
           <p className={cn(typography.body, "text-muted-foreground")}>

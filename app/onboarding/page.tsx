@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
@@ -19,7 +18,6 @@ export default function OnboardingPage() {
   const [redirecting, setRedirecting] = React.useState(false)
 
   // Signup state
-  const [codeVerified, setCodeVerified] = React.useState(false)
   const [signupCode, setSignupCode] = React.useState("")
   const [signUpEmail, setSignUpEmail] = React.useState("")
   const [signUpPassword, setSignUpPassword] = React.useState("")
@@ -34,8 +32,6 @@ export default function OnboardingPage() {
   const [homeAddress, setHomeAddress] = React.useState("")
   const [typicalTodos, setTypicalTodos] = React.useState("")
   const [calendarConnected, setCalendarConnected] = React.useState(false)
-  const [workAddress, setWorkAddress] = React.useState("")
-  const [frequentContacts, setFrequentContacts] = React.useState("")
 
   const handleCodeVerification = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -52,7 +48,6 @@ export default function OnboardingPage() {
       const { valid } = await response.json()
 
       if (valid) {
-        setCodeVerified(true)
         setCurrentStep(1) // Move to email/password step
       } else {
         setError("Invalid signup code. Please try again.")
@@ -478,8 +473,8 @@ export default function OnboardingPage() {
         typical_week: typicalTodos,
         calendar_connected: calendarConnected,
         home_address: homeAddress,
-        work_address: workAddress,
-        frequent_businesses: frequentContacts
+        work_address: "",
+        frequent_businesses: ""
       }
 
       const { error: onboardingError } = await supabase
