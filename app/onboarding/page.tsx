@@ -326,7 +326,7 @@ export default function OnboardingPage() {
         <div className="space-y-8">
           {!isVerified ? (
             <p className={cn(typography.body, "text-muted-foreground")}>
-              Didn&apos;t receive an email? Check your spam folder or contact anna@righthand.agency.
+              Didn&apos;t receive an email? Check your spam folder or contact anna@getrighthand.com.
             </p>
           ) : (
             <p className={cn(typography.body, "text-muted-foreground")}>
