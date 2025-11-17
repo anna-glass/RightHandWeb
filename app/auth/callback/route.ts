@@ -43,9 +43,6 @@ export async function GET(request: NextRequest) {
         .insert({
           id: user.id,
           email: user.email || '',
-          first_name: user.user_metadata?.full_name?.split(' ')[0] || '',
-          last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-          avatar_url: user.user_metadata?.avatar_url || null,
           onboarding_completed: false
         })
 

@@ -31,7 +31,6 @@ export default function OnboardingPage() {
   const [phoneNumber, setPhoneNumber] = React.useState("")
   const [homeAddress, setHomeAddress] = React.useState("")
   const [typicalTodos, setTypicalTodos] = React.useState("")
-  const [calendarConnected, setCalendarConnected] = React.useState(false)
 
   const handleCodeVerification = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -141,6 +140,45 @@ export default function OnboardingPage() {
   const handleConnectCalendar = async () => {
     setLoading(true)
     try {
+      // Save onboarding data BEFORE initiating OAuth
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
+      // Save onboarding responses
+      const onboardingPayload = {
+        id: user.id,
+        typical_week: typicalTodos,
+        calendar_connected: true, // Will be connected after OAuth
+        home_address: homeAddress,
+        work_address: "",
+        frequent_businesses: ""
+      }
+
+      const { error: onboardingError } = await supabase
+        .from('onboarding_responses')
+        .upsert(onboardingPayload)
+
+      if (onboardingError) throw onboardingError
+
+      // Update profile with user info (but don't mark onboarding as completed yet)
+      const profileUpdate = {
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneNumber,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdate)
+        .eq('id', user.id)
+
+      if (profileError) throw profileError
+
+      // Now initiate OAuth
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -157,7 +195,6 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error('Calendar connection error:', err)
       alert('Failed to connect Google Calendar. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -184,28 +221,33 @@ export default function OnboardingPage() {
       if (urlParams.get('calendar') === 'true') {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.provider_token) {
-          // Save the calendar tokens to profile before signing out
+          // Save the calendar tokens and avatar URL to profile
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
+            const updatePayload: {
+              google_calendar_token: string
+              google_refresh_token: string | null
+              updated_at: string
+              avatar_url?: string
+            } = {
+              google_calendar_token: session.provider_token,
+              google_refresh_token: session.provider_refresh_token || null,
+              updated_at: new Date().toISOString()
+            }
+
+            // Add avatar URL if available from Google
+            if (user.user_metadata?.avatar_url) {
+              updatePayload.avatar_url = user.user_metadata.avatar_url
+            }
+
             await supabase
               .from('profiles')
-              .update({
-                google_calendar_token: session.provider_token,
-                google_refresh_token: session.provider_refresh_token,
-                updated_at: new Date().toISOString()
-              })
+              .update(updatePayload)
               .eq('id', user.id)
           }
 
-          setCalendarConnected(true)
+          // Redirect to download page for completion
           setRedirecting(true)
-          // Remove the query param from URL
-          window.history.replaceState({}, '', '/onboarding')
-
-          // Sign out the user after saving calendar tokens
-          await supabase.auth.signOut()
-
-          // Redirect to download page
           router.push('/download')
         }
       }
@@ -471,7 +513,7 @@ export default function OnboardingPage() {
       const onboardingPayload = {
         id: user.id,
         typical_week: typicalTodos,
-        calendar_connected: calendarConnected,
+        calendar_connected: false, // User skipped calendar connection
         home_address: homeAddress,
         work_address: "",
         frequent_businesses: ""
@@ -479,17 +521,16 @@ export default function OnboardingPage() {
 
       const { error: onboardingError } = await supabase
         .from('onboarding_responses')
-        .insert(onboardingPayload)
+        .upsert(onboardingPayload)
 
       if (onboardingError) throw onboardingError
 
-      // Update profile with user info and mark onboarding as completed
-      // Note: Calendar tokens are saved immediately after OAuth redirect, not here
+      // Update profile with user info (don't mark onboarding as completed yet)
+      // Completion happens on the download page
       const profileUpdate = {
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
-        onboarding_completed: true,
         updated_at: new Date().toISOString()
       }
 
@@ -500,10 +541,7 @@ export default function OnboardingPage() {
 
       if (profileError) throw profileError
 
-      // Sign out the user
-      await supabase.auth.signOut()
-
-      // Set redirecting state and redirect to download page
+      // Redirect to download page for final completion
       setRedirecting(true)
       router.push('/download')
     } catch (err) {
