@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { typography } from "@/lib/typography"
 import { createClient } from "@/lib/supabase/browser"
@@ -36,7 +37,7 @@ export default function ConfirmEmailPage() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [supabase.auth])
 
   const handleContinue = () => {
     router.push('/onboarding')
@@ -47,7 +48,7 @@ export default function ConfirmEmailPage() {
       <div className="w-full max-w-md bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 shadow-lg" style={{ height: AUTH_CARD_HEIGHT }}>
         <div className="flex flex-col justify-between h-full">
           <div className="text-center">
-            <img src="/righthandlogo.png" alt="Right Hand" className="h-16 w-auto mx-auto mb-4" />
+            <Image src="/righthandlogo.png" alt="Right Hand" width={64} height={64} className="mx-auto mb-4" />
           </div>
 
           {!isVerified ? (
@@ -63,13 +64,13 @@ export default function ConfirmEmailPage() {
               </div>
 
               <p className={cn(typography.body, "text-muted-foreground text-sm")}>
-                Didn't receive an email? Check your spam folder or contact support.
+                Didn&apos;t receive an email? Check your spam folder or contact support.
               </p>
             </div>
           ) : (
             <div className="space-y-6 text-center flex-1 flex flex-col justify-center">
               <h1 className={cn(typography.h2)}>
-                You're verified!
+                You&apos;re verified!
               </h1>
 
               <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">

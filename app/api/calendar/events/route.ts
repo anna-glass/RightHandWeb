@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Create Supabase client to get the session
     const cookieStore = await cookies()
@@ -54,10 +54,10 @@ export async function GET(request: NextRequest) {
     const events = result.data.items || []
 
     return NextResponse.json({ events })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Calendar API error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch calendar events' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch calendar events' },
       { status: 500 }
     )
   }

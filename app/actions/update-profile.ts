@@ -37,7 +37,7 @@ export async function updateProfile(data: UpdateProfileData) {
     }
 
     return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Failed to update profile' }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update profile' }
   }
 }

@@ -2,9 +2,9 @@
 
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
@@ -34,10 +34,6 @@ export default function AuthPage() {
   const [signUpEmail, setSignUpEmail] = React.useState("")
   const [signUpPassword, setSignUpPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
-  const [firstName, setFirstName] = React.useState("")
-  const [lastName, setLastName] = React.useState("")
-  const [phoneNumber, setPhoneNumber] = React.useState("")
-  const [profileImage, setProfileImage] = React.useState<File | null>(null)
   const [signUpLoading, setSignUpLoading] = React.useState(false)
   const [signUpError, setSignUpError] = React.useState<string | null>(null)
 
@@ -75,9 +71,9 @@ export default function AuthPage() {
       })
 
       if (signInError) throw signInError
-    } catch (err: any) {
+    } catch (err) {
       console.error('Google signin error:', err)
-      setSignInError(err.message)
+      setSignInError(err instanceof Error ? err.message : 'An error occurred')
       setSignInLoading(false)
     }
   }
@@ -118,9 +114,9 @@ export default function AuthPage() {
 
       router.push("/")
       router.refresh()
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error:', err)
-      setSignInError(err.message)
+      setSignInError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setSignInLoading(false)
     }
@@ -158,9 +154,9 @@ export default function AuthPage() {
       if (error) throw error
 
       setWaitlistSubmitted(true)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Waitlist submission error:', err)
-      setSignUpError(err.message || 'Failed to join waitlist. Please try again.')
+      setSignUpError(err instanceof Error ? err.message : 'Failed to join waitlist. Please try again.')
     } finally {
       setSignUpLoading(false)
     }
@@ -183,9 +179,9 @@ export default function AuthPage() {
       })
 
       if (signInError) throw signInError
-    } catch (err: any) {
+    } catch (err) {
       console.error('Google signup error:', err)
-      setSignUpError(err.message)
+      setSignUpError(err instanceof Error ? err.message : 'An error occurred')
       setSignUpLoading(false)
     }
   }
@@ -231,30 +227,10 @@ export default function AuthPage() {
 
       // Redirect to confirmation page
       router.push('/confirm-email')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Create account - Error:', err)
-      setSignUpError(err.message || "Failed to complete account setup")
+      setSignUpError(err instanceof Error ? err.message : "Failed to complete account setup")
       setSignUpLoading(false)
-    }
-  }
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const validTypes = ['image/png', 'image/jpeg', 'image/jpg']
-      if (!validTypes.includes(file.type)) {
-        setSignUpError('Please upload a PNG or JPEG image.')
-        return
-      }
-
-      const maxSize = 5 * 1024 * 1024
-      if (file.size > maxSize) {
-        setSignUpError('File too large. Maximum size is 5MB.')
-        return
-      }
-
-      setProfileImage(file)
-      setSignUpError(null)
     }
   }
 
@@ -262,7 +238,7 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg">
         <div className="text-center">
-          <img src="/righthandlogo.png" alt="Right Hand" className="h-16 w-auto mx-auto mb-4" />
+          <Image src="/righthandlogo.png" alt="Right Hand" width={64} height={64} className="mx-auto mb-4" />
         </div>
 
         {currentView === 'signin' ? (
@@ -340,7 +316,7 @@ export default function AuthPage() {
 
             <div className="text-center">
               <p className={cn(typography.body, "text-muted-foreground mb-2")}>
-                Don't have an account?
+                Don&apos;t have an account?
               </p>
               <Button
                 variant="outline"
@@ -363,7 +339,7 @@ export default function AuthPage() {
                     <p className={cn(typography.body, "text-muted-foreground")}>
                       {!showWaitlist
                         ? "If you have a code to sign up, enter it here."
-                        : "We're in beta testing, but would love for you to join the waitlist. Thanks for your interest!"
+                        : "We&apos;re in beta testing, but would love for you to join the waitlist. Thanks for your interest!"
                       }
                     </p>
                   </div>
@@ -397,7 +373,7 @@ export default function AuthPage() {
                           disabled={signUpLoading}
                           className={cn(typography.body, "text-muted-foreground hover:text-foreground transition-colors")}
                         >
-                          (if you don't, click here)
+                          (if you don&apos;t, click here)
                         </button>
                       </div>
                     </form>
@@ -438,7 +414,7 @@ export default function AuthPage() {
                     <div className="space-y-6">
                       <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
                         <p className={cn(typography.body, "text-green-600")}>
-                          ✓ You've been added to the waitlist! We'll be in touch soon.
+                          ✓ You&apos;ve been added to the waitlist! We&apos;ll be in touch soon.
                         </p>
                       </div>
                       <div className="text-center">

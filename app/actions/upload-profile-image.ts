@@ -53,7 +53,7 @@ export async function uploadProfileImage(formData: FormData) {
       .getPublicUrl(filePath)
 
     return { success: true, url: publicUrl }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Failed to upload image' }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to upload image' }
   }
 }

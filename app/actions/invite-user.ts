@@ -40,7 +40,7 @@ export async function inviteUser(email: string) {
     }
 
     return { success: true, data: authData }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Failed to invite user' }
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to invite user' }
   }
 }

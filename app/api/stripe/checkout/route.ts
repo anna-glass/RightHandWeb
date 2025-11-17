@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
@@ -6,7 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-10-29.clover',
 })
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     console.log('Checkout API called')
     const supabase = await createClient()
@@ -96,12 +96,12 @@ export async function POST(req: NextRequest) {
       sessionId: session.id,
       url: session.url
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error creating checkout session:', error)
-    console.error('Error details:', error.message, error.stack)
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error', error instanceof Error ? error.stack : '')
     return NextResponse.json(
       {
-        error: error.message || 'Failed to create checkout session',
+        error: error instanceof Error ? error.message : 'Failed to create checkout session',
         details: error.toString()
       },
       { status: 500 }

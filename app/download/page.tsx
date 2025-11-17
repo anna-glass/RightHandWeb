@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
@@ -12,7 +13,6 @@ export default function DownloadPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = React.useState(true)
-  const [user, setUser] = React.useState<any>(null)
 
   React.useEffect(() => {
     const checkAuth = async () => {
@@ -23,8 +23,6 @@ export default function DownloadPage() {
           router.push('/login')
           return
         }
-
-        setUser(user)
       } catch (err) {
         console.error('Error checking auth:', err)
         router.push('/login')
@@ -34,7 +32,7 @@ export default function DownloadPage() {
     }
 
     checkAuth()
-  }, [])
+  }, [router, supabase.auth])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -67,7 +65,7 @@ export default function DownloadPage() {
       {/* Content */}
       <div className="relative z-10 w-full max-w-2xl bg-sidebar/95 backdrop-blur-sm rounded-lg p-8 space-y-8 shadow-lg">
         <div className="text-center space-y-6">
-          <img src="/righthandlogo.png" alt="Right Hand" className="h-16 w-auto mx-auto" />
+          <Image src="/righthandlogo.png" alt="Right Hand" width={64} height={64} className="mx-auto" />
 
           <h1 className={cn(typography.h2)}>
             Download the Right Hand App

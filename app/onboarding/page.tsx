@@ -110,7 +110,7 @@ export default function OnboardingPage() {
   const handleConnectCalendar = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           scopes: 'https://www.googleapis.com/auth/calendar.readonly',
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
       }
     }
     checkOnboardingStatus()
-  }, [])
+  }, [router, supabase])
 
   // Check if returning from Google OAuth
   React.useEffect(() => {
@@ -204,7 +204,7 @@ export default function OnboardingPage() {
       }
     }
     checkCalendarConnection()
-  }, [])
+  }, [supabase])
 
   const steps = [
     {
@@ -212,12 +212,12 @@ export default function OnboardingPage() {
       content: (
         <div className="space-y-6">
           <p className="text-lg text-muted-foreground">
-            I'm Anna, the first (and only) personal assistant behind Right Hand - so whenever you send a message,
-            I'll be the one making sure it gets done! Over time, I'll get to know you and how to do tasks exactly
+            I&apos;m Anna, the first (and only) personal assistant behind Right Hand - so whenever you send a message,
+            I&apos;ll be the one making sure it gets done! Over time, I&apos;ll get to know you and how to do tasks exactly
             how you would do them - and your responses during the onboarding give me a head start.
           </p>
           <p className="text-lg text-muted-foreground">
-            Let's start with the basics:
+            Let&apos;s start with the basics:
           </p>
           <div className="space-y-3">
             <Input
@@ -257,8 +257,8 @@ export default function OnboardingPage() {
       content: (
         <div className="space-y-6">
           <p className="text-lg text-muted-foreground">
-            Can you walk me through a typical week in your life? You can make this as brief or as lengthy as you'd like,
-            it's just helpful to know the kinds of things you get up to and the tasks that tend to come up.
+            Can you walk me through a typical week in your life? You can make this as brief or as lengthy as you&apos;d like,
+            it&apos;s just helpful to know the kinds of things you get up to and the tasks that tend to come up.
           </p>
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function OnboardingPage() {
         <div className="space-y-4">
           <p className="text-lg text-muted-foreground mb-4">
             Calendars help with birthdays, booking appointments that work with your schedule,
-            and not bugging you when you're busy.
+            and not bugging you when you&apos;re busy.
           </p>
           {!calendarConnected ? (
             <div className="space-y-4">
@@ -319,7 +319,7 @@ export default function OnboardingPage() {
                 {loading ? "Connecting..." : "Connect Google Calendar"}
               </Button>
               <p className="text-lg text-muted-foreground">
-                If you don't use Google Calendar, I'll just ask for dates & times that work for you when creating bookings or reservations.
+                If you don&apos;t use Google Calendar, I&apos;ll just ask for dates & times that work for you when creating bookings or reservations.
               </p>
             </div>
           ) : (
@@ -355,7 +355,7 @@ export default function OnboardingPage() {
               onChange={(e) => setAddresses({...addresses, work: e.target.value})}
             />
             <Textarea
-              placeholder="Frequent Businesses - Just list out any doctors, spas, gyms, etc. I'll know what you mean."
+              placeholder="Frequent Businesses - Just list out any doctors, spas, gyms, etc. I&apos;ll know what you mean."
               value={addresses.frequentBusinesses}
               onChange={(e) => setAddresses({...addresses, frequentBusinesses: e.target.value})}
               className="min-h-[100px]"
@@ -408,7 +408,15 @@ export default function OnboardingPage() {
       if (onboardingError) throw onboardingError
 
       // Update profile with user info, Google Calendar tokens if connected, and mark onboarding as completed
-      const profileUpdate: any = {
+      const profileUpdate: {
+        first_name: string
+        last_name: string
+        phone_number: string
+        onboarding_completed: boolean
+        updated_at: string
+        google_calendar_token?: string
+        google_refresh_token?: string | null
+      } = {
         first_name: firstName,
         last_name: lastName,
         phone_number: phoneNumber,
@@ -430,7 +438,7 @@ export default function OnboardingPage() {
 
       // Redirect to download page
       router.push('/download')
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to save onboarding:', err)
       alert('Failed to save onboarding responses. Please try again.')
     } finally {

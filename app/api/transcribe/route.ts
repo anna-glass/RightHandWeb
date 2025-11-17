@@ -24,10 +24,10 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ text: transcription.text })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Transcription error:', error)
     return NextResponse.json(
-      { error: error.message || 'Transcription failed' },
+      { error: error instanceof Error ? error.message : 'Transcription failed' },
       { status: 500 }
     )
   }
