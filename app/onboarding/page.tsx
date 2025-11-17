@@ -172,9 +172,9 @@ export default function OnboardingPage() {
         if (profile?.phone_number) setPhoneNumber(profile.phone_number)
 
         if (profile?.onboarding_completed) {
-          // Already completed onboarding, redirect to profile
-          console.log('Onboarding - Already completed, redirecting to profile')
-          router.push('/profile')
+          // Already completed onboarding, redirect to download page
+          console.log('Onboarding - Already completed, redirecting to download')
+          router.push('/download')
           return
         }
 
@@ -392,17 +392,18 @@ export default function OnboardingPage() {
       }
 
       // Save onboarding responses to database
+      const onboardingPayload = {
+        id: user.id,
+        typical_week: typicalWeek,
+        calendar_connected: calendarConnected,
+        home_address: addresses.home,
+        work_address: addresses.work,
+        frequent_businesses: addresses.frequentBusinesses
+      }
+
       const { error: onboardingError } = await supabase
         .from('onboarding_responses')
-        .insert({
-          user_id: user.id,
-          typical_week: typicalWeek,
-          calendar_connected: calendarConnected,
-          home_address: addresses.home,
-          work_address: addresses.work,
-          frequent_businesses: addresses.frequentBusinesses,
-          completed_at: new Date().toISOString()
-        })
+        .insert(onboardingPayload)
 
       if (onboardingError) throw onboardingError
 
@@ -427,8 +428,8 @@ export default function OnboardingPage() {
 
       if (profileError) throw profileError
 
-      // Redirect to profile page
-      router.push('/profile')
+      // Redirect to download page
+      router.push('/download')
     } catch (err: any) {
       console.error('Failed to save onboarding:', err)
       alert('Failed to save onboarding responses. Please try again.')

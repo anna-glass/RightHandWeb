@@ -21,6 +21,6 @@ export default async function Home() {
     redirect("/onboarding")
   }
 
-  // User is onboarded, redirect to profile page
-  redirect("/profile")
+  // User is onboarded, redirect to download page
+  redirect("/download")
 }
