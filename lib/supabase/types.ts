@@ -17,110 +17,102 @@ export type Database = {
       onboarding_responses: {
         Row: {
           id: string
-          user_id: string
           typical_week: string | null
           calendar_connected: boolean | null
           home_address: string | null
           work_address: string | null
           frequent_businesses: string | null
-          completed_at: string | null
           created_at: string | null
         }
         Insert: {
           id?: string
-          user_id: string
           typical_week?: string | null
           calendar_connected?: boolean | null
           home_address?: string | null
           work_address?: string | null
           frequent_businesses?: string | null
-          completed_at?: string | null
           created_at?: string | null
         }
         Update: {
           id?: string
-          user_id?: string
           typical_week?: string | null
           calendar_connected?: boolean | null
           home_address?: string | null
           work_address?: string | null
           frequent_businesses?: string | null
-          completed_at?: string | null
           created_at?: string | null
         }
         Relationships: []
       }
       addresses: {
         Row: {
-          city: string
-          country: string | null
-          created_at: string | null
           id: string
-          name: string
-          state: string
-          street: string
-          type: string
-          updated_at: string | null
           user_id: string
-          zip_code: string
+          name: string
+          created_at: string | null
+          updated_at: string | null
+          address: string | null
+          phone_number: string | null
+          email: string | null
         }
         Insert: {
-          city: string
-          country?: string | null
-          created_at?: string | null
           id?: string
-          name: string
-          state: string
-          street: string
-          type: string
-          updated_at?: string | null
           user_id: string
-          zip_code: string
+          name: string
+          created_at?: string | null
+          updated_at?: string | null
+          address?: string | null
+          phone_number?: string | null
+          email?: string | null
         }
         Update: {
-          city?: string
-          country?: string | null
-          created_at?: string | null
           id?: string
-          name?: string
-          state?: string
-          street?: string
-          type?: string
-          updated_at?: string | null
           user_id?: string
-          zip_code?: string
+          name?: string
+          created_at?: string | null
+          updated_at?: string | null
+          address?: string | null
+          phone_number?: string | null
+          email?: string | null
         }
         Relationships: []
       }
       messages: {
         Row: {
-          attachments: Json | null
+          id: string
           content: string
           created_at: string | null
-          id: string
+          attachments: Json | null
+          member: string
           sender: string | null
-          user_id: string
         }
         Insert: {
-          attachments?: Json | null
+          id?: string
           content: string
           created_at?: string | null
-          id?: string
+          attachments?: Json | null
+          member: string
           sender?: string | null
-          user_id: string
         }
         Update: {
-          attachments?: Json | null
+          id?: string
           content?: string
           created_at?: string | null
-          id?: string
+          attachments?: Json | null
+          member?: string
           sender?: string | null
-          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "messages_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "messages_member_fkey"
+            columns: ["member"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_fkey"
+            columns: ["sender"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -129,31 +121,34 @@ export type Database = {
       }
       tasks: {
         Row: {
-          created_at: string | null
           id: string
+          title: string | null
           status: string | null
           status_updates: string[] | null
-          title: string | null
+          created_at: string | null
           updated_at: string | null
           user_id: string
+          hours_saved: number | null
         }
         Insert: {
-          created_at?: string | null
           id?: string
+          title?: string | null
           status?: string | null
           status_updates?: string[] | null
-          title?: string | null
+          created_at?: string | null
           updated_at?: string | null
           user_id: string
+          hours_saved?: number | null
         }
         Update: {
-          created_at?: string | null
           id?: string
+          title?: string | null
           status?: string | null
           status_updates?: string[] | null
-          title?: string | null
+          created_at?: string | null
           updated_at?: string | null
           user_id?: string
+          hours_saved?: number | null
         }
         Relationships: [
           {
@@ -167,61 +162,55 @@ export type Database = {
       }
       profiles: {
         Row: {
+          id: string
           avatar_url: string | null
           created_at: string | null
-          email: string
+          updated_at: string | null
           first_name: string | null
-          hours_saved_this_month: number
-          id: string
           last_name: string | null
+          email: string
           memories: string | null
-          notes: string | null
-          onboarding_completed: boolean | null
-          phone_number: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_current_period_end: string | null
-          subscription_status: string | null
-          tasks_this_month: number
-          updated_at: string | null
+          phone_number: string | null
+          google_calendar_token: string | null
+          google_refresh_token: string | null
+          onboarding_completed: boolean | null
         }
         Insert: {
+          id: string
           avatar_url?: string | null
           created_at?: string | null
-          email?: string
+          updated_at?: string | null
           first_name?: string | null
-          hours_saved_this_month?: number
-          id: string
           last_name?: string | null
+          email?: string
           memories?: string | null
-          notes?: string | null
-          onboarding_completed?: boolean | null
-          phone_number?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
-          subscription_status?: string | null
-          tasks_this_month?: number
-          updated_at?: string | null
+          phone_number?: string | null
+          google_calendar_token?: string | null
+          google_refresh_token?: string | null
+          onboarding_completed?: boolean | null
         }
         Update: {
+          id?: string
           avatar_url?: string | null
           created_at?: string | null
-          email?: string
+          updated_at?: string | null
           first_name?: string | null
-          hours_saved_this_month?: number
-          id?: string
           last_name?: string | null
+          email?: string
           memories?: string | null
-          notes?: string | null
-          onboarding_completed?: boolean | null
-          phone_number?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_current_period_end?: string | null
-          subscription_status?: string | null
-          tasks_this_month?: number
-          updated_at?: string | null
+          phone_number?: string | null
+          google_calendar_token?: string | null
+          google_refresh_token?: string | null
+          onboarding_completed?: boolean | null
         }
         Relationships: []
       }
@@ -258,6 +247,24 @@ export type Database = {
         }
         Relationships: []
       }
+      waitlist: {
+        Row: {
+          id: string
+          email: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -269,6 +276,7 @@ export type Database = {
       user_role:
         | "member"
         | "righthand"
+        | "assistant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -399,6 +407,7 @@ export const Constants = {
       user_role: [
         "member",
         "righthand",
+        "assistant",
       ],
     },
   },

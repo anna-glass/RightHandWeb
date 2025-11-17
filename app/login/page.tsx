@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { AUTH_CARD_HEIGHT } from "@/lib/constants"
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
@@ -552,5 +552,13 @@ export default function AuthPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AuthPage() {
+  return (
+    <React.Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p>Loading...</p></div>}>
+      <AuthPageContent />
+    </React.Suspense>
   )
 }

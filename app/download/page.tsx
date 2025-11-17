@@ -87,7 +87,7 @@ export default function DownloadPage() {
             </div>
           </div>
 
-          <p className={cn(typography.small, "text-muted-foreground")}>
+          <p className={cn(typography.bodySmall, "text-muted-foreground")}>
             Available on iOS. Visit the App Store to download manually.
           </p>
         </div>
