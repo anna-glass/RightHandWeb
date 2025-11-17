@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -52,9 +51,7 @@ export async function GET(request: NextRequest) {
 
       if (profileError) {
         console.error('Auth callback - Profile creation error:', profileError)
-        // If profile creation fails, delete the auth user and redirect with error
-        const adminClient = createAdminClient()
-        await adminClient.auth.admin.deleteUser(user.id)
+        // If profile creation fails, sign out and redirect with error
         await supabase.auth.signOut()
         return NextResponse.redirect(`${origin}/?error=profile_creation_failed`)
       }
