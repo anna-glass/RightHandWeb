@@ -102,7 +102,7 @@ export async function POST() {
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Failed to create checkout session',
-        details: error.toString()
+        details: String(error)
       },
       { status: 500 }
     )
