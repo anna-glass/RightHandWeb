@@ -17,9 +17,17 @@ interface BlooioWebhookPayload {
   text: string
   attachments: any[]
   protocol: string
-  timestamp: number
   device_id: string
-  received_at: number
+}
+
+// Helper function to generate a random verification token
+function generateVerificationToken(length: number = 10): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let token = ''
+  for (let i = 0; i < length; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return token
 }
 
 export async function POST(request: NextRequest) {
@@ -52,6 +60,68 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Look up profile by phone number (single indexed query)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('phone_number', payload.external_id)
+      .single()
+
+    let profileId = profile?.id || null
+
+    // If no profile exists, create one and send verification
+    if (!profileId) {
+      const verificationToken = generateVerificationToken(10)
+
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .insert({
+          phone_number: payload.external_id,
+          verified: false,
+          verification_token: verificationToken,
+        })
+        .select('id')
+        .single()
+
+      if (newProfile) {
+        profileId = newProfile.id
+
+        // Send verification link via Blooio
+        const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/verify?token=${verificationToken}`
+        const verificationText = `Welcome to RightHand! Verify your account: ${verificationUrl}`
+
+        try {
+          await fetch('https://backend.blooio.com/v1/api/messages', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.BLOOIO_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: payload.external_id,
+              text: verificationText,
+            })
+          })
+
+          // Store the sent verification message in the database
+          await supabase
+            .from('imessages')
+            .insert({
+              event: 'message.sent',
+              message_id: `verification_${verificationToken}`,
+              sender: payload.external_id,
+              text: verificationText,
+              attachments: [],
+              protocol: 'imessage',
+              device_id: payload.device_id,
+              profile_id: profileId,
+            })
+        } catch (error) {
+          console.error('Error sending verification message:', error)
+        }
+      }
+    }
+
     // Save message to Supabase
     const { data, error } = await supabase
       .from('imessages')
@@ -62,9 +132,8 @@ export async function POST(request: NextRequest) {
         text: payload.text,
         attachments: payload.attachments,
         protocol: payload.protocol,
-        timestamp: payload.timestamp,
         device_id: payload.device_id,
-        received_at: payload.received_at,
+        profile_id: profileId, // Link to profile if found
       })
       .select()
       .single()

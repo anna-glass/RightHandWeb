@@ -115,10 +115,29 @@ export default function AdminPage() {
     }
   }
 
+  const loadUserMessages = async (profileId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('imessages')
+        .select('*')
+        .eq('profile_id', profileId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('Error loading messages:', error)
+        return
+      }
+
+      setMessages(data || [])
+    } catch (error) {
+      console.error('Error loading messages:', error)
+    }
+  }
+
   const handleUserSelect = (user: any) => {
     setSelectedUser(user)
     loadUserCalendar(user.email)
-    setMessages([]) // Clear messages when switching users
+    loadUserMessages(user.id) // Load iMessages for this user
   }
 
   const handleLogout = async () => {
@@ -253,14 +272,16 @@ export default function AdminPage() {
                     {user.avatar_url ? (
                       <img
                         src={user.avatar_url}
-                        alt={`${user.first_name} ${user.last_name}`}
+                        alt={user.first_name ? `${user.first_name} ${user.last_name}` : user.phone_number}
                         className="w-14 h-14 rounded-full border border-gray-200"
                       />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-base font-medium text-gray-600">
-                          {user.first_name?.[0]}{user.last_name?.[0]}
-                        </span>
+                        {user.first_name && user.last_name ? (
+                          <span className="text-base font-medium text-gray-600">
+                            {user.first_name[0]}{user.last_name[0]}
+                          </span>
+                        ) : null}
                       </div>
                     )}
                   </div>
@@ -268,11 +289,15 @@ export default function AdminPage() {
                   {/* Name and Phone (VStack) */}
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-base font-medium truncate">
-                      {user.first_name} {user.last_name}
+                      {user.first_name && user.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : user.phone_number}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {user.phone_number || user.email}
-                    </p>
+                    {user.first_name && user.last_name && (
+                      <p className="text-sm text-muted-foreground truncate">
+                        {user.phone_number || user.email}
+                      </p>
+                    )}
                   </div>
 
                   {/* Last Message Date */}
@@ -295,21 +320,24 @@ export default function AdminPage() {
             <div className="flex-1 overflow-y-auto p-4 pt-24 space-y-4">
               {messages.map((message) => (
                 <div
-                  key={message.id}
+                  key={message.message_id}
                   className={cn(
                     "flex",
-                    message.sender === 'admin' ? "justify-end" : "justify-start"
+                    message.event === 'message.sent' ? "justify-end" : "justify-start"
                   )}
                 >
                   <div
                     className={cn(
                       "max-w-md rounded-2xl px-4 py-2",
-                      message.sender === 'admin'
-                        ? "bg-primary text-primary-foreground"
+                      message.event === 'message.sent'
+                        ? "bg-[#007AFF]"
                         : "bg-gray-100"
                     )}
                   >
-                    <p className={cn(typography.body)}>{message.content}</p>
+                    <p className={cn(
+                      "text-base",
+                      message.event === 'message.sent' ? "text-white" : "text-gray-900"
+                    )}>{message.text}</p>
                   </div>
                 </div>
               ))}
@@ -322,21 +350,25 @@ export default function AdminPage() {
                 {userProfile?.avatar_url ? (
                   <img
                     src={userProfile.avatar_url}
-                    alt={`${userProfile.first_name} ${userProfile.last_name}`}
+                    alt={userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.phone_number}
                     className="w-16 h-16 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.15)] relative z-10 -mb-2"
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-gray-200 shadow-[0_0_10px_rgba(0,0,0,0.15)] flex items-center justify-center relative z-10 -mb-2">
-                    <span className="text-lg font-medium text-gray-600">
-                      {userProfile?.first_name?.[0]}{userProfile?.last_name?.[0]}
-                    </span>
+                    {userProfile?.first_name && userProfile?.last_name ? (
+                      <span className="text-lg font-medium text-gray-600">
+                        {userProfile.first_name[0]}{userProfile.last_name[0]}
+                      </span>
+                    ) : null}
                   </div>
                 )}
 
                 {/* Name Capsule with Backdrop Blur */}
                 <div className="px-4 py-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]">
                   <p className={cn(typography.bodySmall, "font-medium text-gray-900")}>
-                    {userProfile?.first_name} {userProfile?.last_name}
+                    {userProfile?.first_name && userProfile?.last_name
+                      ? `${userProfile.first_name} ${userProfile.last_name}`
+                      : userProfile?.phone_number}
                   </p>
                 </div>
               </div>
@@ -363,7 +395,7 @@ export default function AdminPage() {
                         handleSendMessage()
                       }
                     }}
-                    className="flex-1 bg-transparent border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-sm placeholder:text-gray-500"
+                    className="flex-1 bg-transparent border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-base placeholder:text-gray-500"
                   />
                   {newMessage.trim() && (
                     <button
@@ -387,34 +419,15 @@ export default function AdminPage() {
       </div>
 
         {/* Right Panel - Notes */}
-        <div className="w-96 flex flex-col bg-gray-50 overflow-hidden -mr-3 -mt-3 -mb-3 rounded-r-3xl border-l border-gray-200">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className={cn(typography.h4)}>Notes</h2>
-        </div>
-
+        <div className="w-[480px] flex flex-col bg-gray-50 overflow-hidden -mr-3 -mt-3 -mb-3 rounded-r-3xl border-l border-gray-200">
         {/* Notes Content */}
         <div className="flex-1 p-4">
           <textarea
             placeholder="Take notes here..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className={cn(
-              "w-full h-full resize-none border-0 bg-transparent rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-primary/20",
-              typography.body
-            )}
+            className="w-full h-full resize-none border-0 bg-transparent rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 text-base"
           />
-        </div>
-
-        {/* Notes Actions */}
-        <div className="p-4 border-t border-gray-200 space-y-2">
-          <Button
-            variant="outline"
-            onClick={() => setNotes("")}
-            className="w-full"
-          >
-            Clear Notes
-          </Button>
         </div>
       </div>
       </div>
