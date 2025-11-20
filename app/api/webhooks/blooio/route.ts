@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
       // Send verification link via Blooio
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
       const verificationUrl = `${baseUrl}/verify/${tokenToUse}`
-      const verificationText = `Welcome to RightHand! Verify your account: ${verificationUrl}`
+      const verificationText = `Hiii!! Hit this link - ${verificationUrl}`
 
       console.log(`Sending verification message to ${payload.external_id}`)
       console.log('Verification message text:', verificationText)
