@@ -17,14 +17,23 @@ function VerifyContent() {
   const [loading, setLoading] = React.useState(false)
   const [verificationToken, setVerificationToken] = React.useState<string | null>(null)
 
-  // Get verification token from URL path parameter
+  // Get verification token from URL path parameter and clear any stale sessions
   React.useEffect(() => {
     const token = params.token as string
     if (token) {
       setVerificationToken(token)
+      // Clear any stale sessions to ensure clean verification flow
+      const clearStaleSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession()
+        // If there's a session but no provider_refresh_token, it's stale - clear it
+        if (session && !session.provider_refresh_token) {
+          console.log('Clearing stale session')
+          await supabase.auth.signOut()
+        }
+      }
+      clearStaleSession()
     }
-    // Allow viewing without token for preview purposes
-  }, [params])
+  }, [params, supabase])
 
   // Helper function to change slide with animation
   const goToSlide = (index: number) => {
@@ -148,83 +157,90 @@ function VerifyContent() {
 
       const { data: { session } } = await supabase.auth.getSession()
 
-      // If user has a session with Google provider token, they just returned from OAuth
-      if (session?.provider_token && session?.user) {
-        const user = session.user
+      // Only proceed if we have a FRESH session with Google provider token
+      // This means the user just completed OAuth in this session
+      if (!session?.provider_token || !session?.user || !session?.provider_refresh_token) {
+        console.log('No valid OAuth session found, user needs to authenticate')
+        return
+      }
 
-        // Check if profile already exists for this user
-        const { data: existingProfile } = await supabase
+      const user = session.user
+
+      // Wait a moment for auth.users to be fully populated (race condition fix)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Check if profile already exists for this user
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (existingProfile) {
+        console.log('Profile already exists, redirecting to home')
+        router.push('/home?onboarding=complete')
+        return
+      }
+
+      // Look up the pending verification by token
+      const { data: pendingVerification, error: lookupError } = await supabase
+        .from('pending_verifications')
+        .select('phone_number')
+        .eq('verification_token', token)
+        .maybeSingle()
+
+      if (lookupError || !pendingVerification) {
+        console.error('Pending verification not found:', lookupError)
+        alert('Verification link is invalid or expired. Please try again.')
+        return
+      }
+
+      try {
+        // Create the profile with Google user ID + phone from pending verification
+        // Parse name from user metadata
+        let firstName: string | undefined = undefined
+        let lastName: string | undefined = undefined
+        if (user.user_metadata?.full_name) {
+          const nameParts = user.user_metadata.full_name.split(' ')
+          firstName = nameParts[0]
+          if (nameParts.length > 1) {
+            lastName = nameParts.slice(1).join(' ')
+          }
+        }
+
+        const { error: insertError } = await supabase
           .from('profiles')
-          .select('id')
-          .eq('id', user.id)
-          .maybeSingle()
+          .insert({
+            id: user.id,
+            email: user.email || '',
+            phone_number: pendingVerification.phone_number,
+            verified: true,
+            google_calendar_token: session.provider_token,
+            google_refresh_token: session.provider_refresh_token || null,
+            avatar_url: user.user_metadata?.avatar_url || null,
+            first_name: firstName || null,
+            last_name: lastName || null,
+          })
 
-        if (existingProfile) {
-          console.log('Profile already exists, redirecting to home')
-          router.push('/home?onboarding=complete')
-          return
-        }
-
-        // Look up the pending verification by token
-        const { data: pendingVerification, error: lookupError } = await supabase
-          .from('pending_verifications')
-          .select('phone_number')
-          .eq('verification_token', token)
-          .maybeSingle()
-
-        if (lookupError || !pendingVerification) {
-          console.error('Pending verification not found:', lookupError)
-          alert('Verification link is invalid or expired. Please try again.')
-          return
-        }
-
-        try {
-          // Create the profile with Google user ID + phone from pending verification
-          // Parse name from user metadata
-          let firstName: string | undefined = undefined
-          let lastName: string | undefined = undefined
-          if (user.user_metadata?.full_name) {
-            const nameParts = user.user_metadata.full_name.split(' ')
-            firstName = nameParts[0]
-            if (nameParts.length > 1) {
-              lastName = nameParts.slice(1).join(' ')
-            }
-          }
-
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: user.id,
-              email: user.email || '',
-              phone_number: pendingVerification.phone_number,
-              verified: true,
-              google_calendar_token: session.provider_token,
-              google_refresh_token: session.provider_refresh_token || null,
-              avatar_url: user.user_metadata?.avatar_url || null,
-              first_name: firstName || null,
-              last_name: lastName || null,
-            })
-
-          if (insertError) {
-            console.error('Failed to create profile:', insertError)
-            alert('Failed to complete setup. Please try again.')
-            return
-          }
-
-          console.log('Profile created successfully')
-
-          // Delete the pending verification
-          await supabase
-            .from('pending_verifications')
-            .delete()
-            .eq('verification_token', token)
-
-          // Redirect to home with success flag
-          router.push('/home?onboarding=complete')
-        } catch (error) {
-          console.error('Error during profile creation:', error)
+        if (insertError) {
+          console.error('Failed to create profile:', insertError)
           alert('Failed to complete setup. Please try again.')
+          return
         }
+
+        console.log('Profile created successfully')
+
+        // Delete the pending verification
+        await supabase
+          .from('pending_verifications')
+          .delete()
+          .eq('verification_token', token)
+
+        // Redirect to home with success flag
+        router.push('/home?onboarding=complete')
+      } catch (error) {
+        console.error('Error during profile creation:', error)
+        alert('Failed to complete setup. Please try again.')
       }
     }
     checkGoogleConnection()
