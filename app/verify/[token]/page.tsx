@@ -230,6 +230,20 @@ function VerifyContent() {
 
         console.log('Profile created successfully')
 
+        // Link all past messages to this user profile
+        const { error: linkError } = await supabase
+          .from('imessages')
+          .update({ profile_id: user.id })
+          .eq('sender', pendingVerification.phone_number)
+          .is('profile_id', null)
+
+        if (linkError) {
+          console.error('Failed to link past messages:', linkError)
+          // Don't fail the whole flow - just log the error
+        } else {
+          console.log('Successfully linked past messages to profile')
+        }
+
         // Delete the pending verification
         await supabase
           .from('pending_verifications')
