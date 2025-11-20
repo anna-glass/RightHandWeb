@@ -177,6 +177,8 @@ export type Database = {
           google_calendar_token: string | null
           google_refresh_token: string | null
           onboarding_completed: boolean | null
+          verified: boolean | null
+          verification_token: string | null
         }
         Insert: {
           id: string
@@ -194,6 +196,8 @@ export type Database = {
           google_calendar_token?: string | null
           google_refresh_token?: string | null
           onboarding_completed?: boolean | null
+          verified?: boolean | null
+          verification_token?: string | null
         }
         Update: {
           id?: string
@@ -211,6 +215,8 @@ export type Database = {
           google_calendar_token?: string | null
           google_refresh_token?: string | null
           onboarding_completed?: boolean | null
+          verified?: boolean | null
+          verification_token?: string | null
         }
         Relationships: []
       }
@@ -261,6 +267,24 @@ export type Database = {
         Update: {
           id?: string
           email?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      pending_verifications: {
+        Row: {
+          verification_token: string
+          phone_number: string
+          created_at: string | null
+        }
+        Insert: {
+          verification_token: string
+          phone_number: string
+          created_at?: string | null
+        }
+        Update: {
+          verification_token?: string
+          phone_number?: string
           created_at?: string | null
         }
         Relationships: []

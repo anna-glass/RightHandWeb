@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
@@ -12,7 +12,7 @@ import { Suspense } from "react"
 
 function VerifyContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
+  const params = useParams()
   const supabase = createClient()
   const [currentSlide, setCurrentSlide] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
@@ -22,14 +22,14 @@ function VerifyContent() {
   const contactPhone = "858-815-0020"
   const contactName = "Right Hand"
 
-  // Get verification token from URL
+  // Get verification token from URL path parameter
   React.useEffect(() => {
-    const token = searchParams.get('token')
+    const token = params.token as string
     if (token) {
       setVerificationToken(token)
     }
     // Allow viewing without token for preview purposes
-  }, [searchParams])
+  }, [params])
 
   // Helper function to change slide with animation
   const goToSlide = (index: number) => {
@@ -49,7 +49,7 @@ function VerifyContent() {
     <div className="h-full flex flex-col">
       <div className="flex-1 space-y-12 text-left">
         <p className={cn(typography.body, "text-white")}>
-        For decades, executives have had assistants handling their life admin. 
+        For decades, executives have had assistants handling their life admin.
         </p>
         <p className={cn(typography.body, "text-white")}>
         The rest of us have been winging it... Until now.
@@ -80,7 +80,7 @@ function VerifyContent() {
           provider: 'google',
           options: {
             scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.owned https://www.googleapis.com/auth/gmail.modify',
-            redirectTo: `${window.location.origin}/verify?token=${verificationToken}&calendar=true`,
+            redirectTo: `${window.location.origin}/verify/${verificationToken}`,
             queryParams: {
               access_type: 'offline',
               prompt: 'consent',
@@ -101,7 +101,7 @@ function VerifyContent() {
         <div className="flex-1">
           <div className="text-left space-y-12">
             <p className={cn(typography.body, "text-white")}>
-              Right Hand works best with access to your email and calendar. 
+              Right Hand works best with access to your email and calendar.
               </p>
               <p className={cn(typography.body, "text-white")}>
               You can adjust these permissions and settings at any time.
@@ -145,76 +145,96 @@ function VerifyContent() {
     )
   }
 
-  // Check for calendar connection return
+  // Check for Google OAuth return and create profile
   React.useEffect(() => {
-    const checkCalendarConnection = async () => {
-      const urlParams = new URLSearchParams(window.location.search)
-      const token = urlParams.get('token')
+    const checkGoogleConnection = async () => {
+      const token = params.token as string
+      if (!token) return
 
-      if (urlParams.get('calendar') === 'true' && token) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.provider_token) {
-          const { data: { user } } = await supabase.auth.getUser()
-          if (user) {
-            // Find the profile by verification token
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('verification_token', token)
-              .single()
+      const { data: { session } } = await supabase.auth.getSession()
 
-            if (profile) {
-              // Update the existing profile
-              const updateData: {
-                id: string
-                email: string
-                google_calendar_token: string
-                google_refresh_token: string | null
-                verified: boolean
-                verification_token: null
-                updated_at: string
-                avatar_url?: string
-                first_name?: string
-                last_name?: string
-              } = {
-                id: user.id,
-                email: user.email || '',
-                google_calendar_token: session.provider_token,
-                google_refresh_token: session.provider_refresh_token || null,
-                verified: true,
-                verification_token: null, // Clear the token
-                updated_at: new Date().toISOString()
-              }
+      // If user has a session with Google provider token, they just returned from OAuth
+      if (session?.provider_token && session?.user) {
+        const user = session.user
 
-              // Add avatar URL if available from Google
-              if (user.user_metadata?.avatar_url) {
-                updateData.avatar_url = user.user_metadata.avatar_url
-              }
+        // Check if profile already exists for this user
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
 
-              // Add first and last name from Google user metadata
-              if (user.user_metadata?.full_name) {
-                const nameParts = user.user_metadata.full_name.split(' ')
-                updateData.first_name = nameParts[0]
-                if (nameParts.length > 1) {
-                  updateData.last_name = nameParts.slice(1).join(' ')
-                }
-              }
+        if (existingProfile) {
+          console.log('Profile already exists, redirecting to home')
+          router.push('/home?onboarding=complete')
+          return
+        }
 
-              const { id, ...updatePayload } = updateData
-              await supabase
-                .from('profiles')
-                .update(updatePayload)
-                .eq('verification_token', token)
-            }
+        // Look up the pending verification by token
+        const { data: pendingVerification, error: lookupError } = await supabase
+          .from('pending_verifications')
+          .select('phone_number')
+          .eq('verification_token', token)
+          .maybeSingle()
 
-            // Redirect to home with success flag
-            router.push('/home?onboarding=complete')
+        if (lookupError || !pendingVerification) {
+          console.error('Pending verification not found:', lookupError)
+          alert('Verification link is invalid or expired. Please try again.')
+          return
+        }
+
+        try {
+          // Create the profile with Google user ID + phone from pending verification
+          const profileData = {
+            id: user.id,
+            email: user.email || '',
+            phone_number: pendingVerification.phone_number,
+            verified: true,
+            google_calendar_token: session.provider_token,
+            google_refresh_token: session.provider_refresh_token || null,
           }
+
+          // Add avatar and name if available
+          if (user.user_metadata?.avatar_url) {
+            profileData.avatar_url = user.user_metadata.avatar_url
+          }
+
+          if (user.user_metadata?.full_name) {
+            const nameParts = user.user_metadata.full_name.split(' ')
+            profileData.first_name = nameParts[0]
+            if (nameParts.length > 1) {
+              profileData.last_name = nameParts.slice(1).join(' ')
+            }
+          }
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(profileData)
+
+          if (insertError) {
+            console.error('Failed to create profile:', insertError)
+            alert('Failed to complete setup. Please try again.')
+            return
+          }
+
+          console.log('Profile created successfully')
+
+          // Delete the pending verification
+          await supabase
+            .from('pending_verifications')
+            .delete()
+            .eq('verification_token', token)
+
+          // Redirect to home with success flag
+          router.push('/home?onboarding=complete')
+        } catch (error) {
+          console.error('Error during profile creation:', error)
+          alert('Failed to complete setup. Please try again.')
         }
       }
     }
-    checkCalendarConnection()
-  }, [supabase, router])
+    checkGoogleConnection()
+  }, [supabase, router, params])
 
   const slides = [
     { title: "Welcome to Right Hand", component: <WelcomeSlide key="welcome" /> },
