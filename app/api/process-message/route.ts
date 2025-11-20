@@ -7,6 +7,15 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent
 } from '@/lib/google-calendar'
+import {
+  sendEmail as sendGmailEmail,
+  getRecentEmails,
+  searchEmails,
+  createDraft,
+  updateDraft,
+  sendDraft
+} from '@/lib/gmail'
+import { getAuthenticatedSystemPrompt, getUnauthenticatedSystemPrompt } from '@/lib/system-prompts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -85,7 +94,7 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 2. LOOK UP PROFILE
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, timezone')
+    .select('id, timezone, first_name, last_name')
     .eq('phone_number', sender)
     .maybeSingle()
 
@@ -105,12 +114,14 @@ async function processMessage(messageId: string, sender: string, text: string) {
   }
 
   // 3. CALL CLAUDE WITH CONVERSATION HISTORY
+  const userName = profile?.first_name || 'User'
   const response = await handleClaudeConversation(
     profile?.id || null,
     sender,
     text,
     profile?.timezone || 'America/Los_Angeles',
-    hasPendingVerification
+    hasPendingVerification,
+    userName
   )
 
   console.log('Claude response generated:', response.substring(0, 100) + '...')
@@ -130,7 +141,8 @@ async function handleClaudeConversation(
   phoneNumber: string,
   userMessage: string,
   userTimezone: string = 'America/Los_Angeles',
-  hasPendingVerification: boolean = false
+  hasPendingVerification: boolean = false,
+  userName: string = 'User'
 ): Promise<string> {
   // Load recent conversation history (last 12 hours, no message limit)
   const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
@@ -204,7 +216,7 @@ async function handleClaudeConversation(
     },
     {
       name: "create_calendar_event",
-      description: "create a new calendar event",
+      description: "create a new calendar event with optional attendees. can invite people by email",
       input_schema: {
         type: "object",
         properties: {
@@ -227,6 +239,10 @@ async function handleClaudeConversation(
           location: {
             type: "string",
             description: "event location (optional)"
+          },
+          attendees: {
+            type: "string",
+            description: "comma-separated list of attendee email addresses who will receive calendar invites (optional). example: 'alice@example.com,bob@example.com'"
           }
         },
         required: ["summary", "start", "end"]
@@ -261,6 +277,10 @@ async function handleClaudeConversation(
           location: {
             type: "string",
             description: "new location (optional)"
+          },
+          attendees: {
+            type: "string",
+            description: "comma-separated list of attendee email addresses (optional). replaces existing attendees. empty string removes all attendees"
           }
         },
         required: ["event_id"]
@@ -281,16 +301,71 @@ async function handleClaudeConversation(
       }
     },
     {
-      name: "send_email",
-      description: "send email on behalf of user",
+      name: "create_email_draft",
+      description: "REQUIRED FIRST STEP for sending emails. creates an email draft in Gmail. you MUST call this tool before showing any draft to the user. do not skip this step. parameters: to (email), subject, body, optional cc/bcc",
       input_schema: {
         type: "object",
         properties: {
-          to: { type: "string", description: "recipient email" },
-          subject: { type: "string", description: "email subject" },
-          body: { type: "string", description: "email body" }
+          to: { type: "string", description: "recipient email address" },
+          subject: { type: "string", description: "email subject line" },
+          body: { type: "string", description: "email body text" },
+          cc: { type: "string", description: "cc email addresses (optional)" },
+          bcc: { type: "string", description: "bcc email addresses (optional)" }
         },
         required: ["to", "subject", "body"]
+      }
+    },
+    {
+      name: "send_pending_draft",
+      description: "send the most recent pending email draft. only use AFTER create_email_draft and user confirms. if recipient specified, finds draft by recipient, otherwise sends most recent draft",
+      input_schema: {
+        type: "object",
+        properties: {
+          recipient: { type: "string", description: "email address to match (optional - if not provided, sends most recent draft)" }
+        }
+      }
+    },
+    {
+      name: "update_pending_draft",
+      description: "update the most recent pending email draft. use when user wants to edit the draft",
+      input_schema: {
+        type: "object",
+        properties: {
+          subject: { type: "string", description: "new subject (optional)" },
+          body: { type: "string", description: "new body (optional)" },
+          recipient: { type: "string", description: "email address to match specific draft (optional)" }
+        }
+      }
+    },
+    {
+      name: "search_emails",
+      description: "search for emails by person, subject, or content. use to find threads to reply to",
+      input_schema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "search query (e.g. 'from:trisha@example.com' or 'subject:meeting')"
+          },
+          max_results: {
+            type: "number",
+            description: "max results (default 5)"
+          }
+        },
+        required: ["query"]
+      }
+    },
+    {
+      name: "get_recent_emails",
+      description: "get recent emails from inbox",
+      input_schema: {
+        type: "object",
+        properties: {
+          max_results: {
+            type: "number",
+            description: "max number of emails to fetch (default 10)"
+          }
+        }
       }
     }
   ]
@@ -300,107 +375,8 @@ async function handleClaudeConversation(
     : baseTools
 
   const systemPrompt = userId
-    ? `you're right hand. you have access to the user's calendar and email
-
-current date/time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone, dateStyle: 'full', timeStyle: 'short' })}
-timezone: ${userTimezone}
-
-CRITICAL RULES:
-- you MUST use tools to actually do things. NEVER pretend or role-play
-- if they ask to ADD calendar event, USE create_calendar_event tool
-- if they ask to VIEW calendar, USE get_calendar_events tool
-- if they ask to MOVE/CHANGE event time, USE get_calendar_events to find it, THEN update_calendar_event
-- if they ask to DELETE event, USE delete_calendar_event
-- NEVER say "done" or "added it" unless you actually called the tool
-
-when user says "move X to Y time":
-1. call get_calendar_events to find the event matching X
-2. call update_calendar_event with the event_id and new time
-3. do NOT create a new event
-
-NEVER BREAK CHARACTER:
-- NEVER use numbered lists (1. 2. 3.)
-- NEVER say "would you like me to" or "i can help you"
-- NEVER be formal or overly helpful
-- even when asking for clarification, stay casual and brief
-- no explaining options or being verbose
-
-vibe:
-- talk like a friend texting, not an assistant
-- don't be nice or helpful-sounding
-- don't explain what you can do
-- if they say hi, just say hey back
-- never ask "what can i help with" or similar
-
-style:
-- brief and casual like texting a friend
-- no emojis ever
-- minimal punctuation
-- all lowercase
-- no meta-responses
-- keep responses short but natural
-
-examples:
-user: "can you add something to my gcal"
-you: "yeah what"
-
-user: "add lunch meeting tomorrow 1pm"
-you: [USE create_calendar_event tool, THEN say] "added"
-
-user: "whats my schedule tomorrow"
-you: [USE get_calendar_events tool, THEN show the events]
-
-user: "add coffee with mom at 9am" (but there's already a 9am hair appointment)
-you: "that conflicts with your hair appointment, what do you want to do"
-NOT: numbered lists, NOT "would you like me to", NOT explaining options
-
-user: "move coffee to 7am"
-you: [USE get_calendar_events to find coffee event, USE update_calendar_event with event_id, THEN say] "moved to 7am"
-NOT: create a new event, that leaves duplicates
-
-user: "hi"
-you: "hey"
-
-NEVER use numbered lists, NEVER say "would you like me to", NEVER be formal or overly helpful even when asking for clarification. stay casual and brief always.`
-    : `you're right hand. this user doesn't have an account yet
-
-current date/time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone, dateStyle: 'full', timeStyle: 'short' })}
-their phone number: ${phoneNumber}
-${hasPendingVerification ? 'IMPORTANT: you already sent them a signup link. remind them to click it instead of sending another one.' : 'IMPORTANT: this user needs to sign up to use calendar/email features. mention this casually in your response.'}
-
-vibe:
-- talk like a friend texting, not an assistant
-- don't be pushy about signup, just mention it casually
-- if they say hi, say hey and mention signup
-- don't reveal you're an ai or explain yourself
-
-style:
-- brief and casual
-- no emojis
-- minimal punctuation
-- all lowercase
-
-examples:
-${hasPendingVerification ? `
-user: "hi"
-you: "hey, did you click the link i sent?"
-
-user: "can you help with my calendar"
-you: "you need to click the signup link first"
-
-user: "i lost it" or "send it again"
-you: [USE send_signup_link tool with phone_number: ${phoneNumber}, THEN say] "sent it again"
-` : `
-user: "hi"
-you: "hey, want to sign up?"
-
-user: "what do you do"
-you: "help with calendar and email stuff. want to sign up?"
-
-user: "yeah sign me up" or "sure"
-you: [USE send_signup_link tool with phone_number: ${phoneNumber}, THEN say] "sent you a link"
-`}
-DO NOT ask for their phone number - you already have it`
+    ? getAuthenticatedSystemPrompt(userTimezone, userName)
+    : getUnauthenticatedSystemPrompt(phoneNumber, userTimezone, hasPendingVerification)
 
   // Agentic loop - allow Claude to use tools
   let iterations = 0
@@ -410,8 +386,8 @@ DO NOT ask for their phone number - you already have it`
     iterations++
 
     const response = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
-      max_tokens: 512, // Enough room for natural responses without being verbose
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 2048, // Enough for full email drafts and tool use
       system: systemPrompt,
       tools: tools,
       messages: messages
@@ -453,15 +429,152 @@ DO NOT ask for their phone number - you already have it`
                 start: input.start,
                 end: input.end,
                 description: input.description,
-                location: input.location
+                location: input.location,
+                attendees: input.attendees
               })
             } else if (toolUse.name === "delete_calendar_event") {
               result = await deleteCalendarEvent(
                 userId!,
                 (toolUse.input as any).event_id
               )
-            } else if (toolUse.name === "send_email") {
-              result = await sendEmail(userId!, toolUse.input as any)
+            } else if (toolUse.name === "create_email_draft") {
+              // Create Gmail draft and store in pending_email_drafts table
+              const input = toolUse.input as any
+              const draftResult = await createDraft(userId!, {
+                to: input.to,
+                subject: input.subject,
+                body: input.body,
+                cc: input.cc,
+                bcc: input.bcc
+              })
+
+              if (draftResult.success) {
+                // Store in pending_email_drafts table
+                const { data, error: insertError } = await supabase
+                  .from('pending_email_drafts')
+                  .insert({
+                    user_id: userId!,
+                    gmail_draft_id: draftResult.draftId,
+                    recipient: input.to,
+                    subject: input.subject
+                  })
+                  .select()
+
+                if (insertError) {
+                  console.error('Error saving to pending_email_drafts:', insertError)
+                  result = {
+                    success: false,
+                    error: `Draft created in Gmail but failed to save to database: ${insertError.message}`
+                  }
+                } else {
+                  console.log('Draft saved to pending_email_drafts:', data)
+                  result = {
+                    success: true,
+                    draftId: draftResult.draftId,
+                    to: input.to,
+                    subject: input.subject,
+                    body: input.body,
+                    message: "Draft created in Gmail. You MUST now show the user the complete draft in the format: 'to: [email]\\nsubject: [subject]\\nbody: [full body]\\n\\nsend it?' - DO NOT skip showing the draft details."
+                  }
+                }
+              } else {
+                result = draftResult
+              }
+            } else if (toolUse.name === "send_pending_draft") {
+              // Find and send the pending draft
+              const input = toolUse.input as any
+              console.log('Looking for pending draft for user:', userId)
+
+              let query = supabase
+                .from('pending_email_drafts')
+                .select('*')
+                .eq('user_id', userId!)
+                .order('created_at', { ascending: false })
+
+              if (input?.recipient) {
+                query = query.eq('recipient', input.recipient)
+                console.log('Filtering by recipient:', input.recipient)
+              }
+
+              const { data: pendingDrafts, error: queryError } = await query.limit(1)
+
+              if (queryError) {
+                console.error('Error querying pending drafts:', queryError)
+                result = {
+                  success: false,
+                  error: `Database error: ${queryError.message}`
+                }
+              } else if (pendingDrafts && pendingDrafts.length > 0) {
+                const draft = pendingDrafts[0]
+                console.log('Found pending draft:', draft.id, draft.gmail_draft_id)
+                const sendResult = await sendDraft(userId!, draft.gmail_draft_id)
+
+                if (sendResult.success) {
+                  // Delete from pending_email_drafts
+                  const { error: deleteError } = await supabase
+                    .from('pending_email_drafts')
+                    .delete()
+                    .eq('id', draft.id)
+
+                  if (deleteError) {
+                    console.error('Error deleting draft from DB:', deleteError)
+                  } else {
+                    console.log('Deleted draft from pending_email_drafts:', draft.id)
+                  }
+                }
+
+                result = sendResult
+              } else {
+                console.log('No pending drafts found')
+                result = {
+                  success: false,
+                  error: 'no pending draft found - make sure you called create_email_draft first'
+                }
+              }
+            } else if (toolUse.name === "update_pending_draft") {
+              // Find and update the pending draft
+              const input = toolUse.input as any
+              let query = supabase
+                .from('pending_email_drafts')
+                .select('*')
+                .eq('user_id', userId!)
+                .order('created_at', { ascending: false })
+
+              if (input?.recipient) {
+                query = query.eq('recipient', input.recipient)
+              }
+
+              const { data: pendingDrafts } = await query.limit(1)
+
+              if (pendingDrafts && pendingDrafts.length > 0) {
+                const draft = pendingDrafts[0]
+                const updateResult = await updateDraft(userId!, draft.gmail_draft_id, {
+                  subject: input.subject,
+                  body: input.body
+                })
+
+                if (updateResult.success && input.subject) {
+                  // Update the subject in our table too
+                  await supabase
+                    .from('pending_email_drafts')
+                    .update({ subject: input.subject })
+                    .eq('id', draft.id)
+                }
+
+                result = updateResult
+              } else {
+                result = {
+                  success: false,
+                  error: 'no pending draft found'
+                }
+              }
+            } else if (toolUse.name === "search_emails") {
+              result = await searchEmails(userId!, toolUse.input as any)
+            } else if (toolUse.name === "get_recent_emails") {
+              result = await getRecentEmails(
+                userId!,
+                (toolUse.input as any)?.max_results || 10
+              )
             } else {
               result = { error: `unknown tool: ${toolUse.name}` }
             }
@@ -615,17 +728,7 @@ async function sendSignupLink(input: { phone_number: string }) {
   }
 }
 
-// Placeholder for sending email
-async function sendEmail(
-  userId: string,
-  input: { to: string; subject: string; body: string }
-) {
-  // TODO: Implement Gmail integration
-  return {
-    success: true,
-    message: "Email integration coming soon"
-  }
-}
+// Note: sendEmail is now imported from @/lib/gmail as sendGmailEmail
 
 // Helper function to send Blooio message with retry logic
 async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: number = 5) {

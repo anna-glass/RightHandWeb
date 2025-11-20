@@ -142,6 +142,7 @@ export async function createCalendarEvent(
     end: string   // ISO datetime or date
     description?: string
     location?: string
+    attendees?: string // Comma-separated email addresses
   }
 ) {
   try {
@@ -150,7 +151,12 @@ export async function createCalendarEvent(
     // Determine if all-day event or timed event
     const isAllDay = !params.start.includes('T')
 
-    const event = {
+    // Parse attendees if provided
+    const attendeesList = params.attendees
+      ? params.attendees.split(',').map(email => ({ email: email.trim() }))
+      : undefined
+
+    const event: any = {
       summary: params.summary,
       description: params.description,
       location: params.location,
@@ -162,9 +168,14 @@ export async function createCalendarEvent(
         : { dateTime: params.end, timeZone: timezone },
     }
 
+    if (attendeesList && attendeesList.length > 0) {
+      event.attendees = attendeesList
+    }
+
     const response = await calendar.events.insert({
       calendarId: 'primary',
       requestBody: event,
+      sendUpdates: attendeesList && attendeesList.length > 0 ? 'all' : 'none',
     })
 
     return {
@@ -196,6 +207,7 @@ export async function updateCalendarEvent(
     end?: string
     description?: string
     location?: string
+    attendees?: string // Comma-separated email addresses
   }
 ) {
   try {
@@ -214,11 +226,27 @@ export async function updateCalendarEvent(
       }
     }
 
+    // Parse attendees if provided
+    console.log('params.attendees:', params.attendees, 'type:', typeof params.attendees)
+    const attendeesList = params.attendees !== undefined
+      ? (params.attendees ? params.attendees.split(',').map(email => ({ email: email.trim() })) : [])
+      : undefined
+    console.log('attendeesList:', attendeesList)
+
     // Build update object
     const updates: any = {
       summary: params.summary || existing.data.summary,
       description: params.description !== undefined ? params.description : existing.data.description,
       location: params.location !== undefined ? params.location : existing.data.location,
+    }
+
+    // Update attendees if specified
+    if (attendeesList !== undefined) {
+      console.log('Setting attendees on updates:', attendeesList)
+      updates.attendees = attendeesList
+    } else {
+      console.log('Using existing attendees:', existing.data.attendees)
+      updates.attendees = existing.data.attendees
     }
 
     if (params.start) {
@@ -239,10 +267,19 @@ export async function updateCalendarEvent(
       updates.end = existing.data.end
     }
 
+    console.log('Updating event with:', JSON.stringify(updates, null, 2))
+    console.log('sendUpdates:', attendeesList !== undefined ? 'all' : 'none')
+
     const response = await calendar.events.update({
       calendarId: 'primary',
       eventId: eventId,
       requestBody: updates,
+      sendUpdates: attendeesList !== undefined ? 'all' : 'none',
+    })
+
+    console.log('Updated event response:', {
+      id: response.data.id,
+      attendees: response.data.attendees?.map(a => a.email)
     })
 
     return {
