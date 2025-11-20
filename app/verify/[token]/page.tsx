@@ -83,7 +83,7 @@ function VerifyContent() {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.owned https://www.googleapis.com/auth/gmail.modify',
+            scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.modify',
             redirectTo: `${window.location.origin}/verify/${verificationToken}`,
             queryParams: {
               access_type: 'offline',
@@ -208,6 +208,9 @@ function VerifyContent() {
           }
         }
 
+        // Get user's timezone from browser
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -220,6 +223,7 @@ function VerifyContent() {
             avatar_url: user.user_metadata?.avatar_url || null,
             first_name: firstName || null,
             last_name: lastName || null,
+            timezone: userTimezone,
           })
 
         if (insertError) {

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import {
+  getCalendarEvents,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent
+} from '@/lib/google-calendar'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,69 +22,34 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
+// Track which messages are currently being processed (prevent duplicate processing)
+const processingMessages = new Set<string>()
+
 export async function POST(req: NextRequest) {
   try {
     const { messageId, sender, text } = await req.json()
 
-    console.log('Processing message:', { messageId, sender })
+    console.log('📨 Processing message:', { messageId, sender })
 
-    // 1. RATE LIMITING - Check if user has exceeded 50 messages per hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-
-    const { count, error: countError } = await supabase
-      .from('imessages')
-      .select('*', { count: 'exact', head: true })
-      .eq('sender', sender)
-      .eq('event', 'message.received')
-      .gte('created_at', oneHourAgo)
-
-    if (countError) {
-      console.error('Error checking rate limit:', countError)
+    // Check if this specific message is already being processed
+    if (processingMessages.has(messageId)) {
+      console.log('⚠️ Message already being processed, skipping duplicate:', messageId)
+      return NextResponse.json({ success: true, duplicate: true }, { status: 200 })
     }
 
-    if (count && count >= 50) {
-      console.log('Rate limit exceeded for:', sender)
-      await sendBlooioMessage(
-        sender,
-        "You've reached the message limit for this hour. Please try again later!"
-      )
-      return NextResponse.json({ success: true, rateLimited: true }, { status: 200 })
-    }
+    // Mark this message as being processed
+    processingMessages.add(messageId)
 
-    // 2. LOOK UP PROFILE
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('phone_number', sender)
-      .maybeSingle()
-
-    console.log('Profile lookup:', profile ? `Found: ${profile.id}` : 'Not found')
-
-    // 3. CALL CLAUDE WITH CONVERSATION HISTORY
-    const response = await handleClaudeConversation(
-      profile?.id || null,
-      sender,
-      text
-    )
-
-    console.log('Claude response generated:', response.substring(0, 100) + '...')
-
-    // 4. SEND RESPONSE VIA BLOOIO (with retry and graceful failure)
     try {
-      await sendBlooioMessage(sender, response)
-      console.log('Message processing complete:', messageId)
+      // Process the message (all the existing logic below)
+      await processMessage(messageId, sender, text)
       return NextResponse.json({ success: true }, { status: 200 })
-    } catch (blooioError: any) {
-      console.error('Failed to send via Blooio after retries:', blooioError.message)
-      // Still return success - we processed the message, just couldn't deliver
-      return NextResponse.json({
-        success: true,
-        warning: 'Message processed but delivery failed',
-        error: blooioError.message
-      }, { status: 200 })
+    } finally {
+      // Always remove from processing set when done (even if error)
+      processingMessages.delete(messageId)
     }
   } catch (error) {
-    console.error('Error processing message:', error)
+    console.error('Error in POST handler:', error)
     return NextResponse.json(
       { error: 'Failed to process message' },
       { status: 500 }
@@ -86,10 +57,80 @@ export async function POST(req: NextRequest) {
   }
 }
 
+async function processMessage(messageId: string, sender: string, text: string) {
+
+  // 1. RATE LIMITING - Check if user has exceeded 50 messages per hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+  const { count, error: countError } = await supabase
+    .from('imessages')
+    .select('*', { count: 'exact', head: true })
+    .eq('sender', sender)
+    .eq('event', 'message.received')
+    .gte('created_at', oneHourAgo)
+
+  if (countError) {
+    console.error('Error checking rate limit:', countError)
+  }
+
+  if (count && count >= 50) {
+    console.log('Rate limit exceeded for:', sender)
+    await sendBlooioMessage(
+      sender,
+      "You've reached the message limit for this hour. Please try again later!"
+    )
+    return
+  }
+
+  // 2. LOOK UP PROFILE
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, timezone')
+    .eq('phone_number', sender)
+    .maybeSingle()
+
+  console.log('Profile lookup:', profile ? `Found: ${profile.id}` : 'Not found')
+
+  // If no profile, check if there's a pending verification
+  let hasPendingVerification = false
+  if (!profile) {
+    const { data: pendingVerification } = await supabase
+      .from('pending_verifications')
+      .select('verification_token')
+      .eq('phone_number', sender)
+      .maybeSingle()
+
+    hasPendingVerification = !!pendingVerification
+    console.log('Pending verification:', hasPendingVerification ? 'Found' : 'Not found')
+  }
+
+  // 3. CALL CLAUDE WITH CONVERSATION HISTORY
+  const response = await handleClaudeConversation(
+    profile?.id || null,
+    sender,
+    text,
+    profile?.timezone || 'America/Los_Angeles',
+    hasPendingVerification
+  )
+
+  console.log('Claude response generated:', response.substring(0, 100) + '...')
+
+  // 4. SEND RESPONSE VIA BLOOIO (with retry and graceful failure)
+  try {
+    await sendBlooioMessage(sender, response)
+    console.log('Message processing complete:', messageId)
+  } catch (blooioError: any) {
+    console.error('Failed to send via Blooio after retries:', blooioError.message)
+    // Don't throw - we processed the message, just couldn't deliver
+  }
+}
+
 async function handleClaudeConversation(
   userId: string | null,
   phoneNumber: string,
-  userMessage: string
+  userMessage: string,
+  userTimezone: string = 'America/Los_Angeles',
+  hasPendingVerification: boolean = false
 ): Promise<string> {
   // Load recent conversation history (last 12 hours, no message limit)
   const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
@@ -144,32 +185,110 @@ async function handleClaudeConversation(
 
   const authenticatedTools: Anthropic.Tool[] = [
     {
-      name: "get_calendar_availability",
-      description: "Check user's Google Calendar availability",
+      name: "get_calendar_events",
+      description: "view calendar events for a date or date range",
       input_schema: {
         type: "object",
         properties: {
           start_date: {
             type: "string",
-            description: "Start date in YYYY-MM-DD format"
+            description: "start date in YYYY-MM-DD format"
           },
           end_date: {
             type: "string",
-            description: "End date in YYYY-MM-DD format (optional)"
+            description: "end date in YYYY-MM-DD format (optional, defaults to same day)"
           }
         },
         required: ["start_date"]
       }
     },
     {
-      name: "send_email",
-      description: "Send email on behalf of user",
+      name: "create_calendar_event",
+      description: "create a new calendar event",
       input_schema: {
         type: "object",
         properties: {
-          to: { type: "string", description: "Recipient email address" },
-          subject: { type: "string", description: "Email subject" },
-          body: { type: "string", description: "Email body" }
+          summary: {
+            type: "string",
+            description: "event title/summary"
+          },
+          start: {
+            type: "string",
+            description: "start time as ISO datetime (e.g. 2025-01-20T14:00:00) or date (2025-01-20) for all-day"
+          },
+          end: {
+            type: "string",
+            description: "end time as ISO datetime or date"
+          },
+          description: {
+            type: "string",
+            description: "event description (optional)"
+          },
+          location: {
+            type: "string",
+            description: "event location (optional)"
+          }
+        },
+        required: ["summary", "start", "end"]
+      }
+    },
+    {
+      name: "update_calendar_event",
+      description: "update an existing calendar event",
+      input_schema: {
+        type: "object",
+        properties: {
+          event_id: {
+            type: "string",
+            description: "id of the event to update"
+          },
+          summary: {
+            type: "string",
+            description: "new event title (optional)"
+          },
+          start: {
+            type: "string",
+            description: "new start time (optional)"
+          },
+          end: {
+            type: "string",
+            description: "new end time (optional)"
+          },
+          description: {
+            type: "string",
+            description: "new description (optional)"
+          },
+          location: {
+            type: "string",
+            description: "new location (optional)"
+          }
+        },
+        required: ["event_id"]
+      }
+    },
+    {
+      name: "delete_calendar_event",
+      description: "delete a calendar event",
+      input_schema: {
+        type: "object",
+        properties: {
+          event_id: {
+            type: "string",
+            description: "id of the event to delete"
+          }
+        },
+        required: ["event_id"]
+      }
+    },
+    {
+      name: "send_email",
+      description: "send email on behalf of user",
+      input_schema: {
+        type: "object",
+        properties: {
+          to: { type: "string", description: "recipient email" },
+          subject: { type: "string", description: "email subject" },
+          body: { type: "string", description: "email body" }
         },
         required: ["to", "subject", "body"]
       }
@@ -183,6 +302,29 @@ async function handleClaudeConversation(
   const systemPrompt = userId
     ? `you're right hand. you have access to the user's calendar and email
 
+current date/time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone, dateStyle: 'full', timeStyle: 'short' })}
+timezone: ${userTimezone}
+
+CRITICAL RULES:
+- you MUST use tools to actually do things. NEVER pretend or role-play
+- if they ask to ADD calendar event, USE create_calendar_event tool
+- if they ask to VIEW calendar, USE get_calendar_events tool
+- if they ask to MOVE/CHANGE event time, USE get_calendar_events to find it, THEN update_calendar_event
+- if they ask to DELETE event, USE delete_calendar_event
+- NEVER say "done" or "added it" unless you actually called the tool
+
+when user says "move X to Y time":
+1. call get_calendar_events to find the event matching X
+2. call update_calendar_event with the event_id and new time
+3. do NOT create a new event
+
+NEVER BREAK CHARACTER:
+- NEVER use numbered lists (1. 2. 3.)
+- NEVER say "would you like me to" or "i can help you"
+- NEVER be formal or overly helpful
+- even when asking for clarification, stay casual and brief
+- no explaining options or being verbose
+
 vibe:
 - talk like a friend texting, not an assistant
 - don't be nice or helpful-sounding
@@ -191,46 +333,74 @@ vibe:
 - never ask "what can i help with" or similar
 
 style:
-- EXTREMELY brief - 1-5 words when possible
+- brief and casual like texting a friend
 - no emojis ever
 - minimal punctuation
 - all lowercase
 - no meta-responses
-- don't explain capabilities
+- keep responses short but natural
 
 examples:
 user: "can you add something to my gcal"
 you: "yeah what"
 
+user: "add lunch meeting tomorrow 1pm"
+you: [USE create_calendar_event tool, THEN say] "added"
+
 user: "whats my schedule tomorrow"
-you: [just show schedule]
+you: [USE get_calendar_events tool, THEN show the events]
+
+user: "add coffee with mom at 9am" (but there's already a 9am hair appointment)
+you: "that conflicts with your hair appointment, what do you want to do"
+NOT: numbered lists, NOT "would you like me to", NOT explaining options
+
+user: "move coffee to 7am"
+you: [USE get_calendar_events to find coffee event, USE update_calendar_event with event_id, THEN say] "moved to 7am"
+NOT: create a new event, that leaves duplicates
 
 user: "hi"
 you: "hey"
 
-only use more words when showing actual data from tools`
+NEVER use numbered lists, NEVER say "would you like me to", NEVER be formal or overly helpful even when asking for clarification. stay casual and brief always.`
     : `you're right hand. this user doesn't have an account yet
+
+current date/time: ${new Date().toLocaleString('en-US', { timeZone: userTimezone, dateStyle: 'full', timeStyle: 'short' })}
+their phone number: ${phoneNumber}
+${hasPendingVerification ? 'IMPORTANT: you already sent them a signup link. remind them to click it instead of sending another one.' : 'IMPORTANT: this user needs to sign up to use calendar/email features. mention this casually in your response.'}
 
 vibe:
 - talk like a friend texting, not an assistant
-- don't be nice or helpful-sounding
-- if they say hi, just say hey back
+- don't be pushy about signup, just mention it casually
+- if they say hi, say hey and mention signup
 - don't reveal you're an ai or explain yourself
 
 style:
-- EXTREMELY brief - 1-5 words when possible
+- brief and casual
 - no emojis
 - minimal punctuation
 - all lowercase
 
 examples:
-user: "what do you do"
-you: "help with calendar and email stuff"
-
+${hasPendingVerification ? `
 user: "hi"
-you: "hey"
+you: "hey, did you click the link i sent?"
 
-if they want to sign up, use send_signup_link and say "sent you a link"`
+user: "can you help with my calendar"
+you: "you need to click the signup link first"
+
+user: "i lost it" or "send it again"
+you: [USE send_signup_link tool with phone_number: ${phoneNumber}, THEN say] "sent it again"
+` : `
+user: "hi"
+you: "hey, want to sign up?"
+
+user: "what do you do"
+you: "help with calendar and email stuff. want to sign up?"
+
+user: "yeah sign me up" or "sure"
+you: [USE send_signup_link tool with phone_number: ${phoneNumber}, THEN say] "sent you a link"
+`}
+DO NOT ask for their phone number - you already have it`
 
   // Agentic loop - allow Claude to use tools
   let iterations = 0
@@ -241,7 +411,7 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
 
     const response = await anthropic.messages.create({
       model: "claude-3-5-haiku-20241022",
-      max_tokens: 300, // Very short responses - only expand when showing tool results
+      max_tokens: 512, // Enough room for natural responses without being verbose
       system: systemPrompt,
       tools: tools,
       messages: messages
@@ -258,39 +428,52 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       )
 
+      console.log('🔧 Tool calls:', toolCalls.map(t => t.name).join(', '))
+
       const toolResults = await Promise.all(
         toolCalls.map(async (toolUse) => {
+          console.log(`Calling tool: ${toolUse.name}`, JSON.stringify(toolUse.input, null, 2))
           let result: any
 
           try {
             if (toolUse.name === "send_signup_link") {
               result = await sendSignupLink(toolUse.input as { phone_number: string })
-            } else if (toolUse.name === "get_calendar_availability") {
-              if (!userId) {
-                result = { error: "User must be verified to access calendar" }
-              } else {
-                result = await getCalendarAvailability(
-                  userId,
-                  (toolUse.input as any).start_date,
-                  (toolUse.input as any).end_date
-                )
-              }
+            } else if (toolUse.name === "get_calendar_events") {
+              result = await getCalendarEvents(
+                userId!,
+                (toolUse.input as any).start_date,
+                (toolUse.input as any).end_date
+              )
+            } else if (toolUse.name === "create_calendar_event") {
+              result = await createCalendarEvent(userId!, toolUse.input as any)
+            } else if (toolUse.name === "update_calendar_event") {
+              const input = toolUse.input as any
+              result = await updateCalendarEvent(userId!, input.event_id, {
+                summary: input.summary,
+                start: input.start,
+                end: input.end,
+                description: input.description,
+                location: input.location
+              })
+            } else if (toolUse.name === "delete_calendar_event") {
+              result = await deleteCalendarEvent(
+                userId!,
+                (toolUse.input as any).event_id
+              )
             } else if (toolUse.name === "send_email") {
-              if (!userId) {
-                result = { error: "User must be verified to send emails" }
-              } else {
-                result = await sendEmail(userId, toolUse.input as any)
-              }
+              result = await sendEmail(userId!, toolUse.input as any)
             } else {
-              result = { error: `Unknown tool: ${toolUse.name}` }
+              result = { error: `unknown tool: ${toolUse.name}` }
             }
 
+            console.log(`✅ Tool result for ${toolUse.name}:`, JSON.stringify(result, null, 2))
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
               content: JSON.stringify(result)
             }
           } catch (error: any) {
+            console.error(`❌ Tool error for ${toolUse.name}:`, error.message)
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -313,9 +496,7 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
       )
 
       if (textBlock) {
-        const text = textBlock.text.trim()
-        console.log('Claude response:', text.substring(0, 100))
-        console.log('Total response blocks:', response.content.length)
+        let text = textBlock.text.trim()
 
         // Debug: check if there are multiple text blocks
         const allTextBlocks = response.content.filter(
@@ -327,6 +508,22 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
             console.log(`Block ${i}:`, block.text.substring(0, 50))
           })
         }
+
+        // Deduplicate: Check if entire text is duplicated (e.g. "hello hello")
+        const words = text.split(/\s+/)
+        const halfLength = Math.floor(words.length / 2)
+
+        if (words.length > 1 && words.length % 2 === 0) {
+          const firstHalf = words.slice(0, halfLength).join(' ')
+          const secondHalf = words.slice(halfLength).join(' ')
+
+          if (firstHalf === secondHalf) {
+            console.warn('⚠️ Exact duplicate detected and removed')
+            text = firstHalf
+          }
+        }
+        console.log('Claude response:', text.substring(0, 100))
+        console.log('Total response blocks:', response.content.length)
 
         return text || "..."
       }
@@ -344,7 +541,22 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
     if (Array.isArray(content)) {
       const textBlock = content.find((block: any) => block.type === "text")
       if (textBlock && 'text' in textBlock) {
-        return textBlock.text.trim()
+        let text = textBlock.text.trim()
+
+        // Deduplicate here too
+        const words = text.split(/\s+/)
+        const halfLength = Math.floor(words.length / 2)
+
+        if (words.length > 1 && words.length % 2 === 0) {
+          const firstHalf = words.slice(0, halfLength).join(' ')
+          const secondHalf = words.slice(halfLength).join(' ')
+
+          if (firstHalf === secondHalf) {
+            text = firstHalf
+          }
+        }
+
+        return text || "..."
       }
     }
   }
@@ -389,7 +601,7 @@ async function sendSignupLink(input: { phone_number: string }) {
   try {
     await sendBlooioMessage(
       phone_number,
-      `Welcome to Right Hand! Click here to get started: ${verificationUrl}`
+      verificationUrl
     )
 
     return {
@@ -400,20 +612,6 @@ async function sendSignupLink(input: { phone_number: string }) {
   } catch (error) {
     console.error('Failed to send signup link:', error)
     throw error
-  }
-}
-
-// Placeholder for calendar availability
-async function getCalendarAvailability(
-  userId: string,
-  startDate: string,
-  endDate?: string
-) {
-  // TODO: Implement Google Calendar integration
-  return {
-    success: true,
-    message: "Calendar integration coming soon",
-    availability: []
   }
 }
 
@@ -432,6 +630,12 @@ async function sendEmail(
 // Helper function to send Blooio message with retry logic
 async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: number = 5) {
   const messageId = generateMessageId()
+
+  console.log('📤 sendBlooioMessage called:', {
+    messageId,
+    phoneNumber,
+    textPreview: text.substring(0, 50)
+  })
 
   let attempt = 0
   let lastError: Error | null = null
@@ -458,20 +662,7 @@ async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: 
       if (res.ok) {
         const data = await res.json()
         console.log('Blooio message sent successfully:', data)
-
-        // Save outgoing message to database
-        await supabase
-          .from('imessages')
-          .insert({
-            message_id: messageId,
-            event: 'message.sent',
-            sender: phoneNumber,
-            text: text,
-            protocol: 'imessage',
-            device_id: process.env.BLOOIO_DEVICE_ID || '74415E',
-            attachments: []
-          })
-
+        // Note: Webhook will save this message when Blooio fires message.sent event
         return data
       }
 
@@ -523,26 +714,8 @@ async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: 
     }
   }
 
-  // If we exhausted all retries, log the response but don't throw
+  // If we exhausted all retries, throw error
   console.error(`Failed to send message after ${maxRetries} attempts:`, lastError?.message)
-
-  // Save the outgoing message anyway so we have a record
-  try {
-    await supabase
-      .from('imessages')
-      .insert({
-        message_id: messageId,
-        event: 'message.sent',
-        sender: phoneNumber,
-        text: text + ' [FAILED TO SEND - Blooio unavailable]',
-        protocol: 'imessage',
-        device_id: process.env.BLOOIO_DEVICE_ID || '74415E',
-        attachments: []
-      })
-  } catch (err) {
-    console.error('Failed to save failed message:', err)
-  }
-
   throw lastError || new Error('Failed to send message')
 }
 
