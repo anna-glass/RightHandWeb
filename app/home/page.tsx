@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/browser"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, XCircle, Calendar, Mail, Phone, Download, X } from "lucide-react"
+import { CheckCircle2, XCircle, Calendar, Mail, Phone, Download, X, MessageCircle, Video, ChevronRight } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
@@ -17,6 +17,8 @@ export default function HomePage() {
   const [user, setUser] = React.useState<any>(null)
   const [profile, setProfile] = React.useState<any>(null)
   const [showContactCard, setShowContactCard] = React.useState(false)
+  const [showToast, setShowToast] = React.useState(false)
+  const [isToastDismissing, setIsToastDismissing] = React.useState(false)
 
   // Contact info
   const contactPhone = "858-815-0020"
@@ -46,6 +48,16 @@ export default function HomePage() {
         // Check if coming from onboarding
         if (searchParams.get('onboarding') === 'complete') {
           setShowContactCard(true)
+          setTimeout(() => {
+            setShowToast(true)
+            setTimeout(() => {
+              setIsToastDismissing(true)
+              setTimeout(() => {
+                setShowToast(false)
+                setIsToastDismissing(false)
+              }, 300)
+            }, 5000)
+          }, 2000)
         }
       } catch (error) {
         console.error('Error loading user data:', error)
@@ -95,75 +107,159 @@ END:VCARD`
 
   return (
     <>
+      {/* Toast Notification */}
+      {showToast && (
+        <div
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] transition-all duration-300 ${
+            isToastDismissing
+              ? '-translate-y-20 opacity-0'
+              : 'translate-y-0 opacity-100'
+          }`}
+          style={{
+            animation: isToastDismissing ? 'none' : 'slideDownSpring 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+          }}
+        >
+          <div className="bg-white text-black px-8 py-4 rounded-full shadow-lg border-2 border-gray-200">
+            <p className="text-sm font-medium">Save Right Hand's contact to get started!</p>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes slideDownSpring {
+          0% {
+            transform: translateY(-100px);
+            opacity: 0;
+          }
+          50% {
+            transform: translateY(5px);
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       {/* Contact Card Modal */}
       {showContactCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-8 z-50">
-          <div className="relative bg-white rounded-3xl p-8 max-w-sm w-full">
-            {/* Close button */}
-            <button
-              onClick={() => setShowContactCard(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
+          <div className="relative bg-white rounded-3xl p-8 max-w-lg w-full h-[800px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
             {/* Contact Card */}
-            <div className="flex flex-col items-center space-y-6">
-              {/* Avatar */}
-              <div className="relative w-32 h-32 rounded-full border-2 border-black flex items-center justify-center overflow-hidden bg-white">
+            <div className="flex flex-col items-center h-full justify-between">
+              {/* Avatar at top */}
+              <div className="relative w-48 h-48 rounded-full flex items-center justify-center overflow-hidden bg-white shadow-lg mt-4">
                 <Image
                   src="/righthandlogo.png"
                   alt="Right Hand"
-                  width={96}
-                  height={96}
+                  width={144}
+                  height={144}
                   className="rounded-full"
                 />
               </div>
 
-              {/* Name */}
-              <h3 className={cn(typography.h3)}>{contactName}</h3>
+              {/* Everything else at bottom */}
+              <div className="flex flex-col items-center w-full pb-4">
+                {/* Name */}
+                <h1 className="text-6xl font-bold text-white mb-8" style={{ fontFamily: 'Nunito, sans-serif' }}>{contactName}</h1>
 
-              {/* Phone Number */}
-              <div className="w-full space-y-2">
-                <p className={cn(typography.bodySmall, "text-muted-foreground text-center")}>
-                  Phone Number
-                </p>
-                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                {/* Icon Buttons */}
+                <div className="flex gap-3 mb-4">
+                  <a
+                    href={`sms:${contactPhone}`}
+                    className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                  >
+                    <MessageCircle className="w-6 h-6 text-white" />
+                  </a>
                   <a
                     href={`tel:${contactPhone}`}
-                    className={cn(typography.body, "text-foreground font-normal")}
+                    className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
                   >
-                    {contactPhone}
+                    <Phone className="w-6 h-6 text-white" />
+                  </a>
+                  <a
+                    href={`facetime:${contactPhone}`}
+                    className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                  >
+                    <Video className="w-6 h-6 text-white" />
+                  </a>
+                  <a
+                    href={`mailto:contact@getrighthand.com`}
+                    className="w-12 h-12 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                  >
+                    <Mail className="w-6 h-6 text-white" />
                   </a>
                 </div>
-              </div>
 
-              {/* Save Button */}
-              <Button
-                onClick={handleSaveContact}
-                className="w-full py-6 text-lg"
-                size="lg"
-              >
-                <Download className="w-5 h-5 mr-2" />
-                Save Contact
-              </Button>
+                {/* Contact Card Bubbles */}
+                <div className="w-full space-y-3 px-6 pt-4">
+                {/* Contact Photo & Poster */}
+                <div className="bg-green-900/30 rounded-2xl p-4 flex items-center justify-between hover:bg-green-900/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center overflow-hidden">
+                      <Image
+                        src="/righthandlogo.png"
+                        alt="Right Hand"
+                        width={48}
+                        height={48}
+                        className="rounded-full"
+                      />
+                    </div>
+                    <span className="text-white font-bold">Contact Photo & Poster</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-white/70" />
+                </div>
+
+                {/* Phone & Notes */}
+                <div className="bg-green-900/30 rounded-2xl p-4">
+                  <div className="space-y-3 text-left">
+                    <div>
+                      <p className="text-white font-bold text-sm">mobile</p>
+                      <p className="text-white">{contactPhone}</p>
+                    </div>
+                    <div className="border-t border-white/20 pt-3 pb-6">
+                      <p className="text-white font-bold text-sm">Notes</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Contact & Share Contact */}
+                <div className="bg-green-900/30 rounded-2xl p-4">
+                  <div className="space-y-3 text-left">
+                    <button
+                      onClick={handleSaveContact}
+                      className="w-full text-left hover:opacity-80 transition-opacity"
+                    >
+                      <p className="text-white font-bold">Save Contact</p>
+                    </button>
+                    <div className="border-t border-white/20 pt-3">
+                      <button
+                        onClick={handleSaveContact}
+                        className="w-full text-left hover:opacity-80 transition-opacity"
+                      >
+                        <p className="text-white font-bold">Share Contact</p>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="min-h-screen bg-white p-8">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="min-h-screen p-8 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/homebackground.png)' }}>
+      <div className="max-w-xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className={cn(typography.h1)}>Welcome to Right Hand</h1>
+        <div className="flex items-center justify-end">
           <Button variant="outline" onClick={handleLogout}>
             Logout
           </Button>
         </div>
 
         {/* Profile Card */}
-        <div className="bg-white border-2 border-gray-200 rounded-3xl p-8 space-y-6">
+        <div className="bg-white border-2 border-gray-200 rounded-3xl p-8 space-y-6 h-[800px] overflow-auto">
           {/* Avatar and Name */}
           <div className="flex items-center space-x-6">
             {profile?.avatar_url ? (
