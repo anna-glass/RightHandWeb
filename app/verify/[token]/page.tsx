@@ -2,12 +2,11 @@
 
 import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
-import { Download, ArrowRight, ArrowLeft } from "lucide-react"
+import { ArrowRight, ArrowLeft } from "lucide-react"
 import { Suspense } from "react"
 
 function VerifyContent() {
@@ -17,10 +16,6 @@ function VerifyContent() {
   const [currentSlide, setCurrentSlide] = React.useState(0)
   const [loading, setLoading] = React.useState(false)
   const [verificationToken, setVerificationToken] = React.useState<string | null>(null)
-
-  // Contact info for slide 3
-  const contactPhone = "858-815-0020"
-  const contactName = "Right Hand"
 
   // Get verification token from URL path parameter
   React.useEffect(() => {
@@ -185,31 +180,30 @@ function VerifyContent() {
 
         try {
           // Create the profile with Google user ID + phone from pending verification
-          const profileData = {
-            id: user.id,
-            email: user.email || '',
-            phone_number: pendingVerification.phone_number,
-            verified: true,
-            google_calendar_token: session.provider_token,
-            google_refresh_token: session.provider_refresh_token || null,
-          }
-
-          // Add avatar and name if available
-          if (user.user_metadata?.avatar_url) {
-            profileData.avatar_url = user.user_metadata.avatar_url
-          }
-
+          // Parse name from user metadata
+          let firstName: string | undefined = undefined
+          let lastName: string | undefined = undefined
           if (user.user_metadata?.full_name) {
             const nameParts = user.user_metadata.full_name.split(' ')
-            profileData.first_name = nameParts[0]
+            firstName = nameParts[0]
             if (nameParts.length > 1) {
-              profileData.last_name = nameParts.slice(1).join(' ')
+              lastName = nameParts.slice(1).join(' ')
             }
           }
 
           const { error: insertError } = await supabase
             .from('profiles')
-            .insert(profileData)
+            .insert({
+              id: user.id,
+              email: user.email || '',
+              phone_number: pendingVerification.phone_number,
+              verified: true,
+              google_calendar_token: session.provider_token,
+              google_refresh_token: session.provider_refresh_token || null,
+              avatar_url: user.user_metadata?.avatar_url || null,
+              first_name: firstName || null,
+              last_name: lastName || null,
+            })
 
           if (insertError) {
             console.error('Failed to create profile:', insertError)

@@ -1,23 +1,27 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/browser"
-import { typography } from "@/lib/typography"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Mail, Phone, MessageCircle, Video, ChevronRight } from "lucide-react"
 import { SyncLoader } from "react-spinners"
 
-export default function HomePage() {
+function HomePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [loading, setLoading] = React.useState(true)
   const [imageLoaded, setImageLoaded] = React.useState(false)
-  const [user, setUser] = React.useState<any>(null)
-  const [profile, setProfile] = React.useState<any>(null)
+  const [profile, setProfile] = React.useState<{
+    id: string
+    email?: string | null
+    phone_number?: string | null
+    first_name?: string | null
+    last_name?: string | null
+    avatar_url?: string | null
+  } | null>(null)
   const [showContactCard, setShowContactCard] = React.useState(false)
   const [showToast, setShowToast] = React.useState(false)
   const [isToastDismissing, setIsToastDismissing] = React.useState(false)
@@ -43,8 +47,6 @@ export default function HomePage() {
           router.push('/signin')
           return
         }
-
-        setUser(user)
 
         // Load profile
         const { data: profileData } = await supabase
@@ -131,7 +133,7 @@ END:VCARD`
           }}
         >
           <div className="bg-white text-black px-8 py-4 rounded-full shadow-lg border-2 border-gray-200">
-            <p className="text-sm font-medium">Save Right Hand's contact to get started!</p>
+            <p className="text-sm font-medium">Save Right Hand&apos;s contact to get started!</p>
           </div>
         </div>
       )}
@@ -277,9 +279,11 @@ END:VCARD`
           {/* Avatar and Name - Centered */}
           <div className="flex flex-col items-center space-y-4">
             {profile?.avatar_url ? (
-              <img
+              <Image
                 src={profile.avatar_url}
                 alt={profile.first_name ? `${profile.first_name} ${profile.last_name}` : 'User'}
+                width={128}
+                height={128}
                 className="w-32 h-32 rounded-full"
               />
             ) : (
@@ -357,5 +361,17 @@ END:VCARD`
       </div>
     </div>
     </>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <SyncLoader color="#ffffff" size={10} />
+      </div>
+    }>
+      <HomePageContent />
+    </Suspense>
   )
 }

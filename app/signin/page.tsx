@@ -3,8 +3,6 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { typography } from "@/lib/typography"
-import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { SyncLoader } from "react-spinners"
 

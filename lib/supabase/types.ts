@@ -119,6 +119,50 @@ export type Database = {
           },
         ]
       }
+      imessages: {
+        Row: {
+          event: string
+          message_id: string
+          sender: string
+          text: string
+          attachments: Json | null
+          protocol: string
+          device_id: string
+          created_at: string | null
+          profile_id: string | null
+        }
+        Insert: {
+          event: string
+          message_id: string
+          sender: string
+          text: string
+          attachments?: Json | null
+          protocol: string
+          device_id: string
+          created_at?: string | null
+          profile_id?: string | null
+        }
+        Update: {
+          event?: string
+          message_id?: string
+          sender?: string
+          text?: string
+          attachments?: Json | null
+          protocol?: string
+          device_id?: string
+          created_at?: string | null
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imessages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           id: string
@@ -169,14 +213,10 @@ export type Database = {
           first_name: string | null
           last_name: string | null
           email: string
-          memories: string | null
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          subscription_current_period_end: string | null
+          notes: string | null
           phone_number: string | null
           google_calendar_token: string | null
           google_refresh_token: string | null
-          onboarding_completed: boolean | null
           verified: boolean | null
           verification_token: string | null
         }
@@ -188,14 +228,10 @@ export type Database = {
           first_name?: string | null
           last_name?: string | null
           email?: string
-          memories?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_current_period_end?: string | null
+          notes?: string | null
           phone_number?: string | null
           google_calendar_token?: string | null
           google_refresh_token?: string | null
-          onboarding_completed?: boolean | null
           verified?: boolean | null
           verification_token?: string | null
         }
@@ -207,14 +243,10 @@ export type Database = {
           first_name?: string | null
           last_name?: string | null
           email?: string
-          memories?: string | null
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          subscription_current_period_end?: string | null
+          notes?: string | null
           phone_number?: string | null
           google_calendar_token?: string | null
           google_refresh_token?: string | null
-          onboarding_completed?: boolean | null
           verified?: boolean | null
           verification_token?: string | null
         }

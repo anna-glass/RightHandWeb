@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { randomUUID } from 'crypto'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +15,7 @@ interface BlooioWebhookPayload {
   message_id: string
   external_id: string
   text: string
-  attachments: any[]
+  attachments: unknown[]
   protocol: string
   device_id: string
 }
@@ -124,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Profile lookup result:', profile)
 
-    let profileId = profile?.id || null
+    const profileId = profile?.id || null
 
     // Only run verification flow for incoming messages (message.received)
     // Skip verification for outgoing messages (message.sent) to avoid infinite loops
@@ -177,7 +176,7 @@ export async function POST(request: NextRequest) {
       console.log('Blooio request body:', JSON.stringify(blooioRequestBody, null, 2))
 
       try {
-        const blooioData = await sendBlooioMessageWithRetry(blooioRequestBody)
+        await sendBlooioMessageWithRetry(blooioRequestBody)
         console.log('Verification message sent successfully. Blooio will send a webhook to save it.')
       } catch (error) {
         console.error('Error sending verification message:', error)

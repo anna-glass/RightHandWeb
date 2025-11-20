@@ -4,38 +4,47 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { Send, Search, Plus } from "lucide-react"
 import { SyncLoader } from "react-spinners"
 
+interface UserProfile {
+  id: string
+  email?: string | null
+  phone_number?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  avatar_url?: string | null
+  created_at?: string | null
+}
+
+interface Message {
+  message_id?: string | number
+  event?: string
+  text?: string
+  sender?: string
+  created_at?: string
+  id?: number
+  content?: string
+  timestamp?: string
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = React.useState(true)
-  const [user, setUser] = React.useState<any>(null)
   const [imageLoaded, setImageLoaded] = React.useState(false)
   const [contentReady, setContentReady] = React.useState(false)
 
   // Conversation state
-  const [messages, setMessages] = React.useState<any[]>([])
+  const [messages, setMessages] = React.useState<Message[]>([])
   const [newMessage, setNewMessage] = React.useState("")
 
-  // Whiteboard state
-  const [whiteboardContent, setWhiteboardContent] = React.useState("")
-
   // Users list state
-  const [users, setUsers] = React.useState<any[]>([])
-  const [selectedUser, setSelectedUser] = React.useState<any>(null)
-  const [usersLoading, setUsersLoading] = React.useState(true)
-
-  // User calendar state
-  const [userProfile, setUserProfile] = React.useState<any>(null)
-  const [calendarEvents, setCalendarEvents] = React.useState<any[]>([])
-  const [calendarLoading, setCalendarLoading] = React.useState(true)
-  const [calendarError, setCalendarError] = React.useState<string | null>(null)
+  const [users, setUsers] = React.useState<UserProfile[]>([])
+  const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null)
 
   // Notes state
   const [notes, setNotes] = React.useState("")
@@ -100,7 +109,6 @@ export default function AdminPage() {
         return
       }
 
-      setUser(user)
       setLoading(false)
 
       // Load users list
@@ -108,12 +116,11 @@ export default function AdminPage() {
     }
 
     checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, router])
 
   const loadUsers = async () => {
     try {
-      setUsersLoading(true)
-
       // Fetch all profiles from the database
       const { data: profiles, error } = await supabase
         .from('profiles')
@@ -126,13 +133,12 @@ export default function AdminPage() {
         return
       }
 
-      setUsers(profiles || [])
+      setUsers((profiles || []) as UserProfile[])
 
       // Auto-select first user or aglasspal@gmail.com
       const defaultUser = profiles?.find(p => p.email === 'aglasspal@gmail.com') || profiles?.[0]
       if (defaultUser) {
         setSelectedUser(defaultUser)
-        await loadUserCalendar(defaultUser.email)
         await loadUserMessages(defaultUser.id)
       }
 
@@ -140,34 +146,6 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error loading users:', error)
       setContentReady(true)
-    } finally {
-      setUsersLoading(false)
-    }
-  }
-
-  const loadUserCalendar = async (email: string) => {
-    try {
-      setCalendarLoading(true)
-      setCalendarError(null)
-
-      const response = await fetch(`/api/admin/user-calendar?email=${email}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch calendar data')
-      }
-
-      setUserProfile(data.profile)
-      setCalendarEvents(data.events || [])
-
-      if (!data.calendarConnected) {
-        setCalendarError('User has not connected Google Calendar')
-      }
-    } catch (error) {
-      console.error('Error loading user calendar:', error)
-      setCalendarError(error instanceof Error ? error.message : 'Failed to load calendar')
-    } finally {
-      setCalendarLoading(false)
     }
   }
 
@@ -184,15 +162,14 @@ export default function AdminPage() {
         return
       }
 
-      setMessages(data || [])
+      setMessages((data || []) as Message[])
     } catch (error) {
       console.error('Error loading messages:', error)
     }
   }
 
-  const handleUserSelect = (user: any) => {
+  const handleUserSelect = (user: UserProfile) => {
     setSelectedUser(user)
-    loadUserCalendar(user.email)
     loadUserMessages(user.id) // Load iMessages for this user
   }
 
@@ -202,13 +179,15 @@ export default function AdminPage() {
   }
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !userProfile) return
+    if (!newMessage.trim() || !selectedUser) return
 
-    const message = {
+    const message: Message = {
       id: Date.now(),
       content: newMessage,
+      text: newMessage,
       sender: 'admin',
       timestamp: new Date().toISOString(),
+      event: 'message.sent'
     }
 
     setMessages([...messages, message])
@@ -216,7 +195,7 @@ export default function AdminPage() {
   }
 
   // Format date smartly based on how recent it is
-  const formatSmartDate = (dateString: string | null) => {
+  const formatSmartDate = (dateString: string | null | undefined) => {
     if (!dateString) return ''
 
     const date = new Date(dateString)
@@ -354,9 +333,11 @@ export default function AdminPage() {
                   {/* Profile Image */}
                   <div className="flex-shrink-0">
                     {user.avatar_url ? (
-                      <img
+                      <Image
                         src={user.avatar_url}
-                        alt={user.first_name ? `${user.first_name} ${user.last_name}` : user.phone_number}
+                        alt={user.first_name ? `${user.first_name} ${user.last_name}` : user.phone_number || 'User'}
+                        width={56}
+                        height={56}
                         className="w-14 h-14 rounded-full border border-gray-200"
                       />
                     ) : (
@@ -398,7 +379,7 @@ export default function AdminPage() {
 
       {/* Center Panel - Chat */}
       <div className="flex-1 flex flex-col rounded-2xl overflow-hidden relative">
-        {userProfile ? (
+        {selectedUser ? (
           <>
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 pt-24 space-y-4">
@@ -421,7 +402,7 @@ export default function AdminPage() {
                     <p className={cn(
                       "text-base",
                       message.event === 'message.sent' ? "text-white" : "text-gray-900"
-                    )}>{message.text}</p>
+                    )}>{message.text || message.content}</p>
                   </div>
                 </div>
               ))}
@@ -431,17 +412,19 @@ export default function AdminPage() {
             <div className="absolute top-0 left-0 right-0 flex justify-center pt-4 z-10">
               <div className="flex flex-col items-center">
                 {/* Profile Image with negative margin to overlap capsule */}
-                {userProfile?.avatar_url ? (
-                  <img
-                    src={userProfile.avatar_url}
-                    alt={userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.phone_number}
+                {selectedUser?.avatar_url ? (
+                  <Image
+                    src={selectedUser.avatar_url}
+                    alt={selectedUser.first_name ? `${selectedUser.first_name} ${selectedUser.last_name}` : selectedUser.phone_number || 'User'}
+                    width={64}
+                    height={64}
                     className="w-16 h-16 rounded-full shadow-[0_0_10px_rgba(0,0,0,0.15)] relative z-10 -mb-2"
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-gray-200 shadow-[0_0_10px_rgba(0,0,0,0.15)] flex items-center justify-center relative z-10 -mb-2">
-                    {userProfile?.first_name && userProfile?.last_name ? (
+                    {selectedUser?.first_name && selectedUser?.last_name ? (
                       <span className="text-lg font-medium text-gray-600">
-                        {userProfile.first_name[0]}{userProfile.last_name[0]}
+                        {selectedUser.first_name[0]}{selectedUser.last_name[0]}
                       </span>
                     ) : null}
                   </div>
@@ -450,9 +433,9 @@ export default function AdminPage() {
                 {/* Name Capsule with Backdrop Blur */}
                 <div className="px-4 py-1.5 bg-white/80 backdrop-blur-md rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]">
                   <p className={cn(typography.bodySmall, "font-medium text-gray-900")}>
-                    {userProfile?.first_name && userProfile?.last_name
-                      ? `${userProfile.first_name} ${userProfile.last_name}`
-                      : userProfile?.phone_number}
+                    {selectedUser?.first_name && selectedUser?.last_name
+                      ? `${selectedUser.first_name} ${selectedUser.last_name}`
+                      : selectedUser?.phone_number}
                   </p>
                 </div>
               </div>

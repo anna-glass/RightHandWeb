@@ -34,9 +34,9 @@ export function useProfiles() {
         const allProfiles = data || []
         setProfiles(allProfiles)
 
-        // Split profiles into onboarded and pending
-        const onboarded = allProfiles.filter(p => p.onboarding_completed === true)
-        const pending = allProfiles.filter(p => p.onboarding_completed !== true)
+        // Split profiles into verified and unverified
+        const onboarded = allProfiles.filter(p => p.verified === true)
+        const pending = allProfiles.filter(p => p.verified !== true)
 
         setOnboardedProfiles(onboarded)
         setPendingProfiles(pending)
