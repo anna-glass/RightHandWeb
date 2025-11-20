@@ -7,13 +7,15 @@ import { createClient } from "@/lib/supabase/browser"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, XCircle, Calendar, Mail, Phone, Download, X, MessageCircle, Video, ChevronRight } from "lucide-react"
+import { Mail, Phone, MessageCircle, Video, ChevronRight } from "lucide-react"
+import { SyncLoader } from "react-spinners"
 
 export default function HomePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [loading, setLoading] = React.useState(true)
+  const [imageLoaded, setImageLoaded] = React.useState(false)
   const [user, setUser] = React.useState<any>(null)
   const [profile, setProfile] = React.useState<any>(null)
   const [showContactCard, setShowContactCard] = React.useState(false)
@@ -24,13 +26,21 @@ export default function HomePage() {
   const contactPhone = "858-815-0020"
   const contactName = "Right Hand"
 
+  // Preload background image
+  React.useEffect(() => {
+    const img = new window.Image()
+    img.src = '/homebackground.png'
+    img.onload = () => setImageLoaded(true)
+    img.onerror = () => setImageLoaded(true) // Still show content if image fails
+  }, [])
+
   React.useEffect(() => {
     const loadUserData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
-          router.push('/login')
+          router.push('/signin')
           return
         }
 
@@ -97,10 +107,11 @@ END:VCARD`
     router.push('/')
   }
 
-  if (loading) {
+
+  if (loading || !imageLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className={cn(typography.body, "text-muted-foreground")}>Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <SyncLoader color="#ffffff" size={10} />
       </div>
     )
   }
@@ -144,7 +155,7 @@ END:VCARD`
       {/* Contact Card Modal */}
       {showContactCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-8 z-50">
-          <div className="relative bg-white rounded-3xl p-8 max-w-lg w-full h-[800px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
+          <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full h-[800px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
             {/* Contact Card */}
             <div className="flex flex-col items-center h-full justify-between">
               {/* Avatar at top */}
@@ -194,7 +205,7 @@ END:VCARD`
                 {/* Contact Card Bubbles */}
                 <div className="w-full space-y-3 px-6 pt-4">
                 {/* Contact Photo & Poster */}
-                <div className="bg-green-900/30 rounded-2xl p-4 flex items-center justify-between hover:bg-green-900/40 transition-colors">
+                <div className="bg-green-900/30 rounded-3xl p-4 flex items-center justify-between hover:bg-green-900/40 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center overflow-hidden">
                       <Image
@@ -211,7 +222,7 @@ END:VCARD`
                 </div>
 
                 {/* Phone & Notes */}
-                <div className="bg-green-900/30 rounded-2xl p-4">
+                <div className="bg-green-900/30 rounded-3xl p-4">
                   <div className="space-y-3 text-left">
                     <div>
                       <p className="text-white font-bold text-sm">mobile</p>
@@ -224,7 +235,7 @@ END:VCARD`
                 </div>
 
                 {/* Save Contact & Share Contact */}
-                <div className="bg-green-900/30 rounded-2xl p-4">
+                <div className="bg-green-900/30 rounded-3xl p-4">
                   <div className="space-y-3 text-left">
                     <button
                       onClick={handleSaveContact}
@@ -249,114 +260,99 @@ END:VCARD`
         </div>
       )}
 
-      <div className="min-h-screen p-8 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/homebackground.png)' }}>
-      <div className="max-w-xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-end">
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
-        </div>
+      <div className="relative min-h-screen p-8 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/homebackground.png)' }}>
+        {/* Dark overlay - hide when contact card is open */}
+        {!showContactCard && <div className="absolute inset-0 bg-black/50 z-0"></div>}
 
+        <div className="relative max-w-lg mx-auto z-10 flex items-center justify-center min-h-screen">
         {/* Profile Card */}
-        <div className="bg-white border-2 border-gray-200 rounded-3xl p-8 space-y-6 h-[800px] overflow-auto">
-          {/* Avatar and Name */}
-          <div className="flex items-center space-x-6">
+        <div className="bg-[#222221] rounded-[40px] p-8 space-y-6 h-[800px] overflow-auto min-w-lg w-full">
+          {/* Mac Window Controls */}
+          <div className="flex items-center gap-2.5 mt-0 ml-0 mb-4">
+            <button className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-colors" title="Close" />
+            <button className="w-4 h-4 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors" title="Minimize" />
+            <button className="w-4 h-4 rounded-full bg-green-500 hover:bg-green-600 transition-colors" title="Maximize" />
+          </div>
+
+          {/* Avatar and Name - Centered */}
+          <div className="flex flex-col items-center space-y-4">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt={profile.first_name ? `${profile.first_name} ${profile.last_name}` : 'User'}
-                className="w-24 h-24 rounded-full border-2 border-gray-200"
+                className="w-32 h-32 rounded-full"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center">
+              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
                 {profile?.first_name && profile?.last_name ? (
-                  <span className="text-3xl font-medium text-gray-600">
+                  <span className="text-4xl font-medium text-gray-600">
                     {profile.first_name[0]}{profile.last_name[0]}
                   </span>
                 ) : (
-                  <span className="text-3xl font-medium text-gray-600">?</span>
+                  <span className="text-4xl font-medium text-gray-600">?</span>
                 )}
               </div>
             )}
 
-            <div>
-              <h2 className={cn(typography.h2)}>
-                {profile?.first_name && profile?.last_name
-                  ? `${profile.first_name} ${profile.last_name}`
-                  : 'User'}
-              </h2>
-              {profile?.verified && (
-                <div className="flex items-center gap-2 text-green-600 mt-2">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className={cn(typography.bodySmall)}>Verified</span>
-                </div>
-              )}
-            </div>
+            <h2 className="text-4xl font-bold text-white" style={{ fontFamily: 'Nunito, sans-serif' }}>
+              {profile?.first_name && profile?.last_name
+                ? `${profile.first_name} ${profile.last_name}`
+                : 'User'}
+            </h2>
           </div>
 
-          {/* Contact Details */}
-          <div className="space-y-4 pt-4 border-t border-gray-200">
-            {/* Email */}
+          {/* Contact Details - Bubbles */}
+          <div className="space-y-3 pt-4">
+            {/* Email Bubble */}
             {profile?.email && (
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-gray-500" />
-                <span className={cn(typography.body, "text-gray-700")}>
-                  {profile.email}
-                </span>
+              <div className="bg-[#292927] rounded-3xl p-4">
+                <div className="space-y-1">
+                  <p className="text-white font-bold text-sm">email</p>
+                  <p className="text-white">{profile.email}</p>
+                </div>
               </div>
             )}
 
-            {/* Phone */}
+            {/* Phone Bubble */}
             {profile?.phone_number && (
-              <div className="flex items-center space-x-3">
-                <Phone className="w-5 h-5 text-gray-500" />
-                <span className={cn(typography.body, "text-gray-700")}>
-                  {profile.phone_number}
-                </span>
+              <div className="bg-[#292927] rounded-3xl p-4">
+                <div className="space-y-1">
+                  <p className="text-white font-bold text-sm">mobile</p>
+                  <p className="text-white">{profile.phone_number}</p>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Integrations */}
-          <div className="space-y-4 pt-4 border-t border-gray-200">
-            <h3 className={cn(typography.h4)}>Integrations</h3>
-
-            {/* Google Calendar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Calendar className="w-5 h-5 text-gray-500" />
-                <span className={cn(typography.body)}>Google Calendar</span>
+            {/* Actions Bubble - Logout & Update Permissions & Support */}
+            <div className="bg-[#292927] rounded-3xl p-4">
+              <div className="space-y-3 text-left">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left hover:opacity-80 transition-opacity"
+                >
+                  <p className="text-white font-bold">Logout</p>
+                </button>
+                <div className="border-t border-white/10 pt-3">
+                  <a
+                    href="https://myaccount.google.com/connections?filters=3,4&hl=en"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full block text-left hover:opacity-80 transition-opacity"
+                  >
+                    <p className="text-white font-bold">Update Permissions</p>
+                  </a>
+                </div>
+                <div className="border-t border-white/10 pt-3">
+                  <a
+                    href="mailto:anna@getrighthand.com"
+                    className="w-full block text-left hover:opacity-80 transition-opacity"
+                  >
+                    <p className="text-white font-bold">Support</p>
+                  </a>
+                </div>
               </div>
-              {profile?.google_calendar_token ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className={cn(typography.bodySmall)}>Connected</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-gray-400">
-                  <XCircle className="w-5 h-5" />
-                  <span className={cn(typography.bodySmall)}>Not connected</span>
-                </div>
-              )}
             </div>
           </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
-          <h3 className={cn(typography.h4)}>How to use Right Hand</h3>
-          <ol className="list-decimal list-inside space-y-2">
-            <li className={cn(typography.body, "text-gray-700")}>
-              Save the Right Hand contact to your phone
-            </li>
-            <li className={cn(typography.body, "text-gray-700")}>
-              Send a text message to Right Hand (858-815-0020)
-            </li>
-            <li className={cn(typography.body, "text-gray-700")}>
-              Your Right Hand will help manage your calendar and emails
-            </li>
-          </ol>
         </div>
       </div>
     </div>

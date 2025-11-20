@@ -2,18 +2,22 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { Send, Search, Plus } from "lucide-react"
+import { SyncLoader } from "react-spinners"
 
 export default function AdminPage() {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = React.useState(true)
   const [user, setUser] = React.useState<any>(null)
+  const [imageLoaded, setImageLoaded] = React.useState(false)
+  const [contentReady, setContentReady] = React.useState(false)
 
   // Conversation state
   const [messages, setMessages] = React.useState<any[]>([])
@@ -39,13 +43,60 @@ export default function AdminPage() {
   // Search state
   const [searchQuery, setSearchQuery] = React.useState("")
 
+  // Time state
+  const [currentTime, setCurrentTime] = React.useState("")
+
+  // Preload images
+  React.useEffect(() => {
+    let loadedCount = 0
+    const imagesToLoad = ['/homebackground.png', '/whitelogo.png']
+
+    const checkAllLoaded = () => {
+      loadedCount++
+      if (loadedCount === imagesToLoad.length) {
+        setImageLoaded(true)
+      }
+    }
+
+    imagesToLoad.forEach((src) => {
+      const img = new window.Image()
+      img.src = src
+      img.onload = checkAllLoaded
+      img.onerror = checkAllLoaded // Continue even if image fails to load
+    })
+  }, [])
+
+  // Update time every minute
+  React.useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      const datePart = now.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      }).replace(',', '')
+      const timePart = now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+      const formatted = `${datePart} ${timePart}`
+      setCurrentTime(formatted)
+    }
+
+    updateTime()
+    const interval = setInterval(updateTime, 60000) // Update every minute
+
+    return () => clearInterval(interval)
+  }, [])
+
   // Check authentication
   React.useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user || !user.email?.endsWith('@getrighthand.com')) {
-        router.push('/login')
+        router.push('/signin')
         return
       }
 
@@ -71,6 +122,7 @@ export default function AdminPage() {
 
       if (error) {
         console.error('Error loading users:', error)
+        setContentReady(true)
         return
       }
 
@@ -80,10 +132,14 @@ export default function AdminPage() {
       const defaultUser = profiles?.find(p => p.email === 'aglasspal@gmail.com') || profiles?.[0]
       if (defaultUser) {
         setSelectedUser(defaultUser)
-        loadUserCalendar(defaultUser.email)
+        await loadUserCalendar(defaultUser.email)
+        await loadUserMessages(defaultUser.id)
       }
+
+      setContentReady(true)
     } catch (error) {
       console.error('Error loading users:', error)
+      setContentReady(true)
     } finally {
       setUsersLoading(false)
     }
@@ -142,7 +198,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/signin')
   }
 
   const handleSendMessage = () => {
@@ -207,21 +263,53 @@ export default function AdminPage() {
     })
   }, [users, searchQuery])
 
-  if (loading) {
+  if (loading || !imageLoaded || !contentReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className={cn(typography.body, "text-muted-foreground")}>Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <SyncLoader color="#ffffff" size={10} />
       </div>
     )
   }
 
   return (
     <div
-      className="flex h-screen p-6 bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: 'url(/background.png)' }}
+      className="relative flex flex-col h-screen bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: 'url(/homebackground.png)' }}
     >
-      {/* White rounded container */}
-      <div className="flex flex-1 gap-4 bg-white rounded-3xl p-3 shadow-2xl">
+      {/* Dark overlay with blur */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0"></div>
+
+      {/* macOS-style Toolbar */}
+      <div className="relative z-10 flex items-center justify-between px-6 py-2 backdrop-blur-sm">
+        {/* Left side - Logo */}
+        <div className="flex items-center gap-8">
+          <div className="w-24 h-6 flex-shrink-0">
+            <Image
+              src="/whitelogo.png"
+              alt="Right Hand"
+              width={96}
+              height={96}
+              className="rounded-full"
+            />
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-white text-sm font-medium hover:opacity-70 transition-opacity"
+          >
+            Logout
+          </button>
+        </div>
+
+        {/* Right side - Time */}
+        <div className="text-white text-sm font-medium">
+          {currentTime}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-1 p-6 pt-0">
+        {/* White rounded container */}
+        <div className="flex flex-1 gap-4 bg-white rounded-3xl p-3 shadow-2xl">
         {/* Left Panel - Users List */}
         <div className="w-80 flex flex-col bg-white rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.1)] overflow-hidden">
           {/* Mac Window Controls */}
@@ -247,11 +335,7 @@ export default function AdminPage() {
 
           {/* Users List */}
           <div className="flex-1 overflow-y-auto">
-            {usersLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <p className={cn(typography.body, "text-muted-foreground")}>Loading users...</p>
-              </div>
-            ) : filteredUsers.length === 0 ? (
+            {filteredUsers.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <p className={cn(typography.body, "text-muted-foreground")}>
                   {searchQuery ? 'No users match your search' : 'No users found'}
@@ -412,7 +496,7 @@ export default function AdminPage() {
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className={cn(typography.body, "text-muted-foreground")}>
-              {calendarLoading ? 'Loading user data...' : 'No user data available'}
+              No user data available
             </p>
           </div>
         )}
@@ -429,8 +513,9 @@ export default function AdminPage() {
             className="w-full h-full resize-none border-0 bg-transparent rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 text-base"
           />
         </div>
+        </div>
       </div>
-      </div>
+    </div>
     </div>
   )
 }

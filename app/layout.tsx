@@ -37,7 +37,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body
-        className={`${inter.variable} ${geistMono.variable} ${nunito.variable} antialiased h-full`}
+        className={`${inter.variable} ${geistMono.variable} ${nunito.variable} antialiased h-full bg-black`}
       >
         {children}
       </body>
