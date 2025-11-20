@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { Client as QstashClient } from '@upstash/qstash'
 import {
   getCalendarEvents,
   createCalendarEvent,
@@ -29,6 +30,10 @@ const supabase = createClient(
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
+})
+
+const qstash = new QstashClient({
+  token: process.env.QSTASH_TOKEN!,
 })
 
 // Track which messages are currently being processed (prevent duplicate processing)
@@ -367,6 +372,24 @@ async function handleClaudeConversation(
           }
         }
       }
+    },
+    {
+      name: "create_reminder",
+      description: "create a reminder to notify the user at a specific time. use this when the user asks to be reminded about something",
+      input_schema: {
+        type: "object",
+        properties: {
+          intent: {
+            type: "string",
+            description: "craft a casual, fun message that will be sent directly to the user at reminder time. be direct and playful, like 'get off the couch!' or 'time to call mom!' - no need to say 'reminder' or be formal"
+          },
+          time: {
+            type: "string",
+            description: "when to send the reminder as ISO datetime (e.g. 2025-01-20T14:00:00)"
+          }
+        },
+        required: ["intent", "time"]
+      }
     }
   ]
 
@@ -575,6 +598,58 @@ async function handleClaudeConversation(
                 userId!,
                 (toolUse.input as any)?.max_results || 10
               )
+            } else if (toolUse.name === "create_reminder") {
+              const input = toolUse.input as { intent: string; time: string }
+              const reminderTime = new Date(input.time)
+              const now = new Date()
+
+              // Calculate delay in seconds
+              const delaySeconds = Math.floor((reminderTime.getTime() - now.getTime()) / 1000)
+
+              if (delaySeconds <= 0) {
+                result = {
+                  success: false,
+                  error: "Reminder time must be in the future"
+                }
+              } else {
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+                const isLocalhost = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
+
+                if (isLocalhost) {
+                  // Local development mode - can't use Qstash with localhost
+                  console.warn('⚠️ Reminder requested in local development mode. Qstash requires a public URL.')
+                  result = {
+                    success: false,
+                    error: "Reminders require a public URL. Set NEXT_PUBLIC_BASE_URL to your ngrok/tunnel URL, or deploy to production."
+                  }
+                } else {
+                  try {
+                    const callbackUrl = `${baseUrl}/api/reminders/callback`
+
+                    await qstash.publishJSON({
+                      url: callbackUrl,
+                      delay: delaySeconds,
+                      body: {
+                        phoneNumber: phoneNumber,
+                        intent: input.intent
+                      }
+                    })
+
+                    result = {
+                      success: true,
+                      message: `Reminder set for ${reminderTime.toLocaleString()}`,
+                      intent: input.intent,
+                      time: input.time
+                    }
+                  } catch (error: any) {
+                    console.error('Error creating reminder:', error)
+                    result = {
+                      success: false,
+                      error: `Failed to create reminder: ${error.message}`
+                    }
+                  }
+                }
+              }
             } else {
               result = { error: `unknown tool: ${toolUse.name}` }
             }
