@@ -307,10 +307,31 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
       })
 
     } else if (response.stop_reason === "end_turn") {
-      const textContent = response.content.find(
+      // Get first text block only
+      const textBlock = response.content.find(
         (block): block is Anthropic.TextBlock => block.type === "text"
       )
-      return textContent?.text || "Done!"
+
+      if (textBlock) {
+        const text = textBlock.text.trim()
+        console.log('Claude response:', text.substring(0, 100))
+        console.log('Total response blocks:', response.content.length)
+
+        // Debug: check if there are multiple text blocks
+        const allTextBlocks = response.content.filter(
+          (block): block is Anthropic.TextBlock => block.type === "text"
+        )
+        if (allTextBlocks.length > 1) {
+          console.warn('WARNING: Multiple text blocks detected!', allTextBlocks.length)
+          allTextBlocks.forEach((block, i) => {
+            console.log(`Block ${i}:`, block.text.substring(0, 50))
+          })
+        }
+
+        return text || "..."
+      }
+
+      return "..."
     } else {
       break
     }
@@ -323,12 +344,12 @@ if they want to sign up, use send_signup_link and say "sent you a link"`
     if (Array.isArray(content)) {
       const textBlock = content.find((block: any) => block.type === "text")
       if (textBlock && 'text' in textBlock) {
-        return textBlock.text
+        return textBlock.text.trim()
       }
     }
   }
 
-  return "I ran into an issue processing your request. Please try again."
+  return "..."
 }
 
 // Helper function to send signup link
