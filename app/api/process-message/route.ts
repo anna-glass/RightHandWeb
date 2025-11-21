@@ -164,6 +164,15 @@ export async function POST(req: NextRequest) {
 }
 
 async function processMessage(messageId: string, sender: string, text: string) {
+  // 0. SHOW READ RECEIPT AND TYPING INDICATOR
+  // Wait 0.8 seconds before showing read receipt (feels more natural)
+  await delay(800)
+
+  // Mark as read and start typing in parallel
+  await Promise.all([
+    markAsRead(sender),
+    startTyping(sender)
+  ])
 
   // 1. RATE LIMITING - Check if user has exceeded 50 messages per hour
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
@@ -181,6 +190,7 @@ async function processMessage(messageId: string, sender: string, text: string) {
 
   if (count && count >= 50) {
     console.log('Rate limit exceeded for:', sender)
+    await stopTyping(sender)
     await sendBlooioMessage(
       sender,
       "You've reached the message limit for this hour. Please try again later!"
@@ -225,9 +235,24 @@ async function processMessage(messageId: string, sender: string, text: string) {
 
   console.log('Claude response generated:', response.substring(0, 100) + '...')
 
-  // 4. SEND RESPONSE VIA BLOOIO (with retry and graceful failure)
+  // 4. STOP TYPING INDICATOR
+  await stopTyping(sender)
+
+  // 5. SEND RESPONSE VIA BLOOIO (split by line breaks, with retry and graceful failure)
   try {
-    await sendBlooioMessage(sender, response)
+    // Split response by newlines and filter out empty lines
+    const lines = response
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+
+    console.log(`Sending ${lines.length} message(s) to ${sender}`)
+
+    // Send each line as a separate message (sequentially)
+    for (const line of lines) {
+      await sendBlooioMessage(sender, line)
+    }
+
     console.log('Message processing complete:', messageId)
   } catch (blooioError: unknown) {
     const errorMessage = blooioError instanceof Error ? blooioError.message : String(blooioError)
@@ -1578,6 +1603,71 @@ function generateMessageId(): string {
     id += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return id
+}
+
+// Helper to mark message as read via Blooio
+async function markAsRead(externalId: string): Promise<void> {
+  try {
+    const res = await fetch(`https://backend.blooio.com/v1/api/read/${encodeURIComponent(externalId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.BLOOIO_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!res.ok) {
+      console.warn('Failed to mark as read:', res.status, await res.text())
+    } else {
+      console.log('Marked message as read for:', externalId)
+    }
+  } catch (error) {
+    console.warn('Error marking as read:', error)
+  }
+}
+
+// Helper to start typing indicator via Blooio
+async function startTyping(externalId: string): Promise<void> {
+  try {
+    const res = await fetch(`https://backend.blooio.com/v1/api/typing/${encodeURIComponent(externalId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.BLOOIO_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!res.ok) {
+      console.warn('Failed to start typing:', res.status, await res.text())
+    } else {
+      console.log('Started typing indicator for:', externalId)
+    }
+  } catch (error) {
+    console.warn('Error starting typing:', error)
+  }
+}
+
+// Helper to stop typing indicator via Blooio
+async function stopTyping(externalId: string): Promise<void> {
+  try {
+    const res = await fetch(`https://backend.blooio.com/v1/api/typing/${encodeURIComponent(externalId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${process.env.BLOOIO_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    if (!res.ok) {
+      console.warn('Failed to stop typing:', res.status, await res.text())
+    } else {
+      console.log('Stopped typing indicator for:', externalId)
+    }
+  } catch (error) {
+    console.warn('Error stopping typing:', error)
+  }
+}
+
+// Helper to delay execution
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 // Helper to get timezone offset string for a given timezone
