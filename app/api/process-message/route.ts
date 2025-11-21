@@ -390,6 +390,79 @@ async function handleClaudeConversation(
         },
         required: ["intent", "time"]
       }
+    },
+    {
+      name: "list_reminders",
+      description: "list all pending reminders for the user. use when user asks what reminders they have or wants to see their scheduled reminders",
+      input_schema: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: "cancel_reminder",
+      description: "cancel a pending reminder. use when user wants to cancel or delete a reminder",
+      input_schema: {
+        type: "object",
+        properties: {
+          reminder_id: {
+            type: "string",
+            description: "id of the reminder to cancel (get from list_reminders)"
+          }
+        },
+        required: ["reminder_id"]
+      }
+    },
+    {
+      name: "create_digest",
+      description: "create a recurring digest that sends scheduled summaries. use when user wants daily/weekly updates like 'show me my events every morning' or 'weekly email summary'",
+      input_schema: {
+        type: "object",
+        properties: {
+          prompt: {
+            type: "string",
+            description: "what information to include in the digest (e.g. 'show me all my events today', 'summarize my emails from this week')"
+          },
+          time: {
+            type: "string",
+            description: "time to send in 24-hour format HH:MM in user's timezone (e.g. '07:00', '14:30', '18:45')"
+          },
+          frequency: {
+            type: "string",
+            description: "how often to send: 'daily', 'weekdays', or 'weekly'",
+            enum: ["daily", "weekdays", "weekly"]
+          },
+          day_of_week: {
+            type: "number",
+            description: "for weekly digests only: day of week (0=Sunday, 1=Monday, ..., 6=Saturday). required if frequency is 'weekly'"
+          }
+        },
+        required: ["prompt", "time", "frequency"]
+      }
+    },
+    {
+      name: "list_digests",
+      description: "list all active digests for the user. use when user asks what digests they have or wants to see their scheduled digests",
+      input_schema: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    },
+    {
+      name: "delete_digest",
+      description: "delete/cancel a digest. use when user wants to stop receiving a digest or cancel a scheduled digest",
+      input_schema: {
+        type: "object",
+        properties: {
+          digest_id: {
+            type: "string",
+            description: "id of the digest to delete (get from list_digests)"
+          }
+        },
+        required: ["digest_id"]
+      }
     }
   ]
 
@@ -612,7 +685,11 @@ async function handleClaudeConversation(
                   error: "Reminder time must be in the future"
                 }
               } else {
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+                let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+                // Ensure URL has a scheme
+                if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+                  baseUrl = `https://${baseUrl}`
+                }
                 const isLocalhost = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
 
                 if (isLocalhost) {
@@ -626,20 +703,54 @@ async function handleClaudeConversation(
                   try {
                     const callbackUrl = `${baseUrl}/api/reminders/callback`
 
-                    await qstash.publishJSON({
+                    // Create delayed message in Qstash
+                    const qstashResponse = await qstash.publishJSON({
                       url: callbackUrl,
                       delay: delaySeconds,
                       body: {
                         phoneNumber: phoneNumber,
-                        intent: input.intent
+                        intent: input.intent,
+                        userId: userId,
+                        reminderId: 'TEMP_ID' // Will be updated after insert
                       }
                     })
+
+                    // Qstash returns an array of message IDs
+                    const messageId = Array.isArray(qstashResponse) ? qstashResponse[0].messageId : qstashResponse.messageId
+
+                    // Store reminder in database
+                    const { data: reminderData, error: dbError } = await supabase
+                      .from('reminders')
+                      .insert({
+                        user_id: userId!,
+                        phone_number: phoneNumber,
+                        intent: input.intent,
+                        scheduled_time: reminderTime.toISOString(),
+                        qstash_message_id: messageId,
+                        is_sent: false
+                      })
+                      .select()
+                      .single()
+
+                    if (dbError) {
+                      // Rollback: Try to cancel the Qstash message
+                      try {
+                        await fetch(`https://qstash.upstash.io/v2/messages/${messageId}`, {
+                          method: 'DELETE',
+                          headers: {
+                            'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                          },
+                        })
+                      } catch (e) {
+                        console.error('Failed to rollback Qstash message:', e)
+                      }
+                      throw new Error(`Failed to store reminder: ${dbError.message}`)
+                    }
 
                     result = {
                       success: true,
                       message: `Reminder set for ${reminderTime.toLocaleString()}`,
-                      intent: input.intent,
-                      time: input.time
+                      reminder_id: reminderData.id
                     }
                   } catch (error: any) {
                     console.error('Error creating reminder:', error)
@@ -648,6 +759,363 @@ async function handleClaudeConversation(
                       error: `Failed to create reminder: ${error.message}`
                     }
                   }
+                }
+              }
+            } else if (toolUse.name === "list_reminders") {
+              try {
+                const { data: reminders, error } = await supabase
+                  .from('reminders')
+                  .select('*')
+                  .eq('user_id', userId!)
+                  .eq('is_sent', false)
+                  .order('scheduled_time', { ascending: true })
+
+                if (error) {
+                  result = {
+                    success: false,
+                    error: `Failed to fetch reminders: ${error.message}`
+                  }
+                } else if (!reminders || reminders.length === 0) {
+                  result = {
+                    success: true,
+                    message: "No pending reminders",
+                    reminders: []
+                  }
+                } else {
+                  result = {
+                    success: true,
+                    reminders: reminders.map(r => ({
+                      id: r.id,
+                      intent: r.intent,
+                      scheduled_time: r.scheduled_time,
+                      created_at: r.created_at
+                    }))
+                  }
+                }
+              } catch (error: any) {
+                result = {
+                  success: false,
+                  error: `Failed to list reminders: ${error.message}`
+                }
+              }
+            } else if (toolUse.name === "cancel_reminder") {
+              const input = toolUse.input as { reminder_id: string }
+
+              try {
+                // Get the reminder to find the Qstash message ID
+                const { data: reminder, error: fetchError } = await supabase
+                  .from('reminders')
+                  .select('qstash_message_id, is_sent')
+                  .eq('id', input.reminder_id)
+                  .eq('user_id', userId!)
+                  .single()
+
+                if (fetchError || !reminder) {
+                  result = {
+                    success: false,
+                    error: "Reminder not found or you don't have permission to cancel it"
+                  }
+                } else if (reminder.is_sent) {
+                  result = {
+                    success: false,
+                    error: "Reminder already sent, can't cancel"
+                  }
+                } else {
+                  // Cancel the Qstash message
+                  const cancelRes = await fetch(
+                    `https://qstash.upstash.io/v2/messages/${reminder.qstash_message_id}`,
+                    {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                      },
+                    }
+                  )
+
+                  if (!cancelRes.ok) {
+                    console.error('Failed to cancel Qstash message:', await cancelRes.text())
+                    // Continue anyway - better to delete from our DB
+                  }
+
+                  // Delete from database
+                  const { error: deleteError } = await supabase
+                    .from('reminders')
+                    .delete()
+                    .eq('id', input.reminder_id)
+                    .eq('user_id', userId!)
+
+                  if (deleteError) {
+                    result = {
+                      success: false,
+                      error: `Failed to delete reminder: ${deleteError.message}`
+                    }
+                  } else {
+                    result = {
+                      success: true,
+                      message: "Reminder canceled"
+                    }
+                  }
+                }
+              } catch (error: any) {
+                result = {
+                  success: false,
+                  error: `Failed to cancel reminder: ${error.message}`
+                }
+              }
+            } else if (toolUse.name === "create_digest") {
+              const input = toolUse.input as {
+                prompt: string;
+                time: string;
+                frequency: 'daily' | 'weekdays' | 'weekly';
+                day_of_week?: number;
+              }
+
+              // Parse time (HH:MM format)
+              const timeMatch = input.time.match(/^(\d{1,2}):(\d{2})$/)
+              if (!timeMatch) {
+                result = {
+                  success: false,
+                  error: "time must be in HH:MM format (e.g. '07:00', '14:30')"
+                }
+              } else {
+                const send_hour = parseInt(timeMatch[1])
+                const send_minute = parseInt(timeMatch[2])
+
+                // Validate day_of_week for weekly digests
+                if (input.frequency === 'weekly' && (input.day_of_week === undefined || input.day_of_week === null)) {
+                  result = {
+                    success: false,
+                    error: "day_of_week is required for weekly digests"
+                  }
+                } else if (send_hour < 0 || send_hour > 23) {
+                  result = {
+                    success: false,
+                    error: "hour must be between 0 and 23"
+                  }
+                } else if (send_minute < 0 || send_minute > 59) {
+                  result = {
+                    success: false,
+                    error: "minute must be between 0 and 59"
+                  }
+                } else {
+                try {
+                  // Get user profile for timezone
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('timezone')
+                    .eq('id', userId!)
+                    .single()
+
+                  const userTimezone = profile?.timezone || 'America/Los_Angeles'
+
+                  // Generate cron expression (Qstash uses UTC)
+                  // We need to convert user's local time to UTC
+                  const cronExpression = generateCronExpression(
+                    send_hour,
+                    send_minute,
+                    input.frequency,
+                    input.day_of_week,
+                    userTimezone
+                  )
+
+                  // Create Qstash schedule
+                  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+                  // Ensure URL has a scheme
+                  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+                    baseUrl = `https://${baseUrl}`
+                  }
+
+                  const destinationUrl = `${baseUrl}/api/digests/send`
+                  console.log('Creating Qstash schedule with destination:', destinationUrl)
+                  console.log('Base URL from env:', process.env.NEXT_PUBLIC_BASE_URL)
+
+                  const requestBody = {
+                    destination: destinationUrl,
+                    cron: cronExpression,
+                    body: JSON.stringify({
+                      digestId: 'TEMP_ID' // Will be updated after insert
+                    })
+                  }
+                  console.log('Qstash request body:', JSON.stringify(requestBody, null, 2))
+
+                  const scheduleResponse = await fetch('https://qstash.upstash.io/v2/schedules', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                  })
+
+                  if (!scheduleResponse.ok) {
+                    const errorText = await scheduleResponse.text()
+                    throw new Error(`Failed to create Qstash schedule: ${errorText}`)
+                  }
+
+                  const scheduleData = await scheduleResponse.json()
+                  const scheduleId = scheduleData.scheduleId
+
+                  // Create digest in database
+                  const { data: digestData, error } = await supabase
+                    .from('digests')
+                    .insert({
+                      user_id: userId!,
+                      phone_number: phoneNumber,
+                      prompt: input.prompt,
+                      qstash_schedule_id: scheduleId,
+                      timezone: userTimezone,
+                      send_hour: send_hour,
+                      send_minute: send_minute,
+                      frequency: input.frequency,
+                      day_of_week: input.day_of_week,
+                      is_active: true
+                    })
+                    .select()
+                    .single()
+
+                  if (error) {
+                    // Rollback: Delete the Qstash schedule
+                    await fetch(`https://qstash.upstash.io/v2/schedules/${scheduleId}`, {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                      },
+                    })
+                    throw new Error(`Failed to create digest: ${error.message}`)
+                  }
+
+                  // Update Qstash schedule with real digest ID
+                  await fetch(`https://qstash.upstash.io/v2/schedules/${scheduleId}`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      body: JSON.stringify({
+                        digestId: digestData.id,
+                        userId: userId,
+                        timezone: userTimezone
+                      })
+                    })
+                  })
+
+                  const frequencyText = input.frequency === 'weekly'
+                    ? `every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][input.day_of_week!]}`
+                    : input.frequency === 'weekdays'
+                    ? 'every weekday'
+                    : 'every day'
+
+                  result = {
+                    success: true,
+                    message: `Digest created! You'll receive "${input.prompt}" ${frequencyText} at ${input.time}`,
+                    digest_id: digestData.id
+                  }
+                } catch (error: any) {
+                  console.error('Error creating digest:', error)
+                  result = {
+                    success: false,
+                    error: `Failed to create digest: ${error.message}`
+                  }
+                }
+              }
+              }
+            } else if (toolUse.name === "list_digests") {
+              try {
+                const { data: digests, error } = await supabase
+                  .from('digests')
+                  .select('*')
+                  .eq('user_id', userId!)
+                  .eq('is_active', true)
+                  .order('created_at', { ascending: false })
+
+                if (error) {
+                  result = {
+                    success: false,
+                    error: `Failed to fetch digests: ${error.message}`
+                  }
+                } else if (!digests || digests.length === 0) {
+                  result = {
+                    success: true,
+                    message: "No active digests found",
+                    digests: []
+                  }
+                } else {
+                  result = {
+                    success: true,
+                    digests: digests.map(d => ({
+                      id: d.id,
+                      prompt: d.prompt,
+                      time: `${String(d.send_hour).padStart(2, '0')}:${String(d.send_minute).padStart(2, '0')}`,
+                      frequency: d.frequency,
+                      day_of_week: d.day_of_week,
+                      created_at: d.created_at
+                    }))
+                  }
+                }
+              } catch (error: any) {
+                result = {
+                  success: false,
+                  error: `Failed to list digests: ${error.message}`
+                }
+              }
+            } else if (toolUse.name === "delete_digest") {
+              const input = toolUse.input as { digest_id: string }
+
+              try {
+                // Get the digest to find the Qstash schedule ID
+                const { data: digest, error: fetchError } = await supabase
+                  .from('digests')
+                  .select('qstash_schedule_id')
+                  .eq('id', input.digest_id)
+                  .eq('user_id', userId!)
+                  .single()
+
+                if (fetchError || !digest) {
+                  result = {
+                    success: false,
+                    error: "Digest not found or you don't have permission to delete it"
+                  }
+                } else {
+                  // Delete the Qstash schedule
+                  const deleteScheduleRes = await fetch(
+                    `https://qstash.upstash.io/v2/schedules/${digest.qstash_schedule_id}`,
+                    {
+                      method: 'DELETE',
+                      headers: {
+                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
+                      },
+                    }
+                  )
+
+                  if (!deleteScheduleRes.ok) {
+                    console.error('Failed to delete Qstash schedule:', await deleteScheduleRes.text())
+                    // Continue anyway - better to delete from our DB
+                  }
+
+                  // Delete from database
+                  const { error: deleteError } = await supabase
+                    .from('digests')
+                    .delete()
+                    .eq('id', input.digest_id)
+                    .eq('user_id', userId!)
+
+                  if (deleteError) {
+                    result = {
+                      success: false,
+                      error: `Failed to delete digest: ${deleteError.message}`
+                    }
+                  } else {
+                    result = {
+                      success: true,
+                      message: "Digest deleted successfully"
+                    }
+                  }
+                }
+              } catch (error: any) {
+                result = {
+                  success: false,
+                  error: `Failed to delete digest: ${error.message}`
                 }
               }
             } else {
@@ -750,6 +1218,42 @@ async function handleClaudeConversation(
   }
 
   return "..."
+}
+
+// Helper function to generate cron expression for Qstash (UTC-based)
+function generateCronExpression(
+  localHour: number,
+  localMinute: number,
+  frequency: 'daily' | 'weekdays' | 'weekly',
+  dayOfWeek?: number,
+  timezone: string = 'America/Los_Angeles'
+): string {
+  // Convert local time to UTC
+  // Create a date in the user's timezone at the specified time
+  const now = new Date()
+  const userDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+  userDate.setHours(localHour, localMinute, 0, 0)
+
+  // Get the UTC equivalent
+  const utcDate = new Date(userDate.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const utcHour = utcDate.getHours()
+  const utcMinute = utcDate.getMinutes()
+
+  // Cron format: minute hour day-of-month month day-of-week
+  // Example: "30 14 * * 1" = Every Monday at 2:30pm UTC
+
+  if (frequency === 'daily') {
+    // Run every day at the specified UTC time
+    return `${utcMinute} ${utcHour} * * *`
+  } else if (frequency === 'weekdays') {
+    // Run Monday-Friday (1-5) at the specified UTC time
+    return `${utcMinute} ${utcHour} * * 1-5`
+  } else if (frequency === 'weekly' && dayOfWeek !== undefined) {
+    // Run on specific day of week at the specified UTC time
+    return `${utcMinute} ${utcHour} * * ${dayOfWeek}`
+  }
+
+  throw new Error('Invalid frequency or missing day_of_week')
 }
 
 // Helper function to send signup link

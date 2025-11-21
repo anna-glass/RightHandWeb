@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
       const receiver = new Receiver({
         currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
-        nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
+        nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
       })
 
       const signature = req.headers.get('upstash-signature')
@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Parse the verified body
-      const { phoneNumber, intent } = JSON.parse(body)
+      const { phoneNumber, intent, userId, reminderId } = JSON.parse(body)
 
-      console.log('📅 Reminder callback received (verified):', { phoneNumber, intent })
+      console.log('📅 Reminder callback received (verified):', { phoneNumber, intent, reminderId })
 
       // Send reminder message via Blooio
       const res = await fetch('https://backend.blooio.com/v1/api/messages', {
@@ -71,15 +71,26 @@ export async function POST(req: NextRequest) {
         )
       }
 
+      // Mark reminder as sent in database
+      if (reminderId && reminderId !== 'TEMP_ID') {
+        await supabase
+          .from('reminders')
+          .update({
+            is_sent: true,
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', reminderId)
+      }
+
       console.log('✅ Reminder sent successfully')
       return NextResponse.json({ success: true }, { status: 200 })
     } else {
       // Development mode - no signature verification
       console.warn('⚠️ Running without Qstash signature verification (development mode)')
 
-      const { phoneNumber, intent } = await req.json()
+      const { phoneNumber, intent, userId, reminderId } = await req.json()
 
-      console.log('📅 Reminder callback received (unverified):', { phoneNumber, intent })
+      console.log('📅 Reminder callback received (unverified):', { phoneNumber, intent, reminderId })
 
       // Send reminder message via Blooio
       const res = await fetch('https://backend.blooio.com/v1/api/messages', {
@@ -101,6 +112,17 @@ export async function POST(req: NextRequest) {
           { error: 'Failed to send reminder' },
           { status: 500 }
         )
+      }
+
+      // Mark reminder as sent in database
+      if (reminderId && reminderId !== 'TEMP_ID') {
+        await supabase
+          .from('reminders')
+          .update({
+            is_sent: true,
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', reminderId)
       }
 
       console.log('✅ Reminder sent successfully')
