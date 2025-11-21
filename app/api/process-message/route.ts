@@ -498,7 +498,7 @@ async function handleClaudeConversation(
         properties: {
           intent: {
             type: "string",
-            description: "craft a casual, fun message that will be sent directly to the user at reminder time. be direct and playful, like 'get off the couch!' or 'time to call mom!' - no need to say 'reminder' or be formal"
+            description: "the reminder message sent to user. should start with 'reminding you to' or 'hey, time to' or similar prefix so they know it's a reminder. examples: 'reminding you to pick up halle!', 'hey, time to call mom', 'reminder: take your meds'"
           },
           time: {
             type: "string",

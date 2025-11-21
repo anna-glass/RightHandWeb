@@ -8,10 +8,25 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// Type for calendar events tool input
+// Type for tool inputs
 interface CalendarEventsInput {
   start_date: string
   end_date?: string
+}
+
+interface SearchEmailsInput {
+  query?: string
+  start_date?: string
+  end_date?: string
+  max_results?: number
+}
+
+interface GetRecentEmailsInput {
+  max_results?: number
+}
+
+interface WebSearchInput {
+  query: string
 }
 
 // Initialize clients
@@ -104,10 +119,22 @@ export async function POST(req: NextRequest) {
     const profile = digest.profiles
     const userName = profile.first_name || 'User'
 
+    // Build frequency description for context
+    const frequencyDesc = digest.frequency === 'daily' ? 'daily'
+      : digest.frequency === 'weekdays' ? 'weekday'
+      : digest.frequency === 'weekly' ? 'weekly'
+      : digest.frequency === 'mon_wed_fri' ? 'Mon/Wed/Fri'
+      : digest.frequency === 'tue_thu' ? 'Tue/Thu'
+      : digest.frequency === 'weekends' ? 'weekend'
+      : digest.frequency === 'monthly' ? 'monthly'
+      : digest.frequency
+
     // Generate digest content using Claude
+    const digestPrompt = `This is the user's scheduled ${frequencyDesc} digest. The user asked for: "${digest.prompt}". Start your response with a brief greeting acknowledging this is their ${frequencyDesc} update, then provide the info.`
+
     const digestContent = await generateDigestContent(
       userId,
-      digest.prompt,
+      digestPrompt,
       timezone || digest.timezone,
       userName
     )
@@ -168,16 +195,45 @@ async function generateDigestContent(
           input_schema: {
             type: "object",
             properties: {
-              start_date: {
-                type: "string",
-                description: "start date in YYYY-MM-DD format"
-              },
-              end_date: {
-                type: "string",
-                description: "end date in YYYY-MM-DD format (optional, defaults to same day)"
-              }
+              start_date: { type: "string", description: "start date in YYYY-MM-DD format" },
+              end_date: { type: "string", description: "end date in YYYY-MM-DD format (optional)" }
             },
             required: ["start_date"]
+          }
+        },
+        {
+          name: "search_emails",
+          description: "search for emails by person, subject, content, or date range",
+          input_schema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "search query (e.g. 'from:someone@example.com')" },
+              start_date: { type: "string", description: "emails from this date onwards (YYYY-MM-DD)" },
+              end_date: { type: "string", description: "emails up to this date (YYYY-MM-DD)" },
+              max_results: { type: "number", description: "max results (default 5)" }
+            },
+            required: []
+          }
+        },
+        {
+          name: "get_recent_emails",
+          description: "get recent emails from inbox",
+          input_schema: {
+            type: "object",
+            properties: {
+              max_results: { type: "number", description: "max emails to fetch (default 10)" }
+            }
+          }
+        },
+        {
+          name: "web_search",
+          description: "search the internet for current info (weather, news, sports, facts, etc.)",
+          input_schema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "the search query" }
+            },
+            required: ["query"]
           }
         }
       ]
@@ -195,25 +251,55 @@ async function generateDigestContent(
 
       const toolResults = await Promise.all(
         toolCalls.map(async (toolUse) => {
+          let result: unknown
+
           if (toolUse.name === "get_calendar_events") {
             const { getCalendarEvents } = await import('@/lib/google-calendar')
             const input = toolUse.input as CalendarEventsInput
-            const result = await getCalendarEvents(
-              userId,
-              input.start_date,
-              input.end_date
-            )
+            result = await getCalendarEvents(userId, input.start_date, input.end_date)
             console.log('📅 Calendar result:', JSON.stringify(result))
-            return {
-              type: "tool_result" as const,
-              tool_use_id: toolUse.id,
-              content: JSON.stringify(result)
+          } else if (toolUse.name === "search_emails") {
+            const { searchEmails } = await import('@/lib/gmail')
+            const input = toolUse.input as SearchEmailsInput
+            result = await searchEmails(userId, input)
+            console.log('📧 Search emails result:', JSON.stringify(result))
+          } else if (toolUse.name === "get_recent_emails") {
+            const { getRecentEmails } = await import('@/lib/gmail')
+            const input = toolUse.input as GetRecentEmailsInput
+            result = await getRecentEmails(userId, input?.max_results || 10)
+            console.log('📧 Recent emails result:', JSON.stringify(result))
+          } else if (toolUse.name === "web_search") {
+            const input = toolUse.input as WebSearchInput
+            try {
+              const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  model: 'sonar',
+                  messages: [{ role: 'user', content: input.query }]
+                })
+              })
+              if (perplexityResponse.ok) {
+                const data = await perplexityResponse.json()
+                result = { success: true, answer: data.choices?.[0]?.message?.content || 'No results' }
+              } else {
+                result = { success: false, error: `Search failed: ${perplexityResponse.status}` }
+              }
+            } catch (e) {
+              result = { success: false, error: String(e) }
             }
+            console.log('🔍 Web search result:', JSON.stringify(result))
+          } else {
+            result = { error: `Unknown tool: ${toolUse.name}` }
           }
+
           return {
             type: "tool_result" as const,
             tool_use_id: toolUse.id,
-            content: JSON.stringify({ error: "Unknown tool" })
+            content: JSON.stringify(result)
           }
         })
       )
@@ -244,7 +330,10 @@ async function generateDigestContent(
       const textBlock = finalResponse.content.find(
         (block): block is Anthropic.TextBlock => block.type === "text"
       )
-      const result = textBlock?.text.trim() || "Could not generate digest"
+      const result = textBlock?.text.trim()
+      if (!result) {
+        throw new Error('Claude returned empty response after tool use')
+      }
       console.log('📝 Final digest content:', result)
       return result
     }
@@ -253,7 +342,10 @@ async function generateDigestContent(
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text"
     )
-    const result = textBlock?.text.trim() || "Could not generate digest"
+    const result = textBlock?.text.trim()
+    if (!result) {
+      throw new Error('Claude returned empty response')
+    }
     console.log('📝 Digest content (no tools):', result)
     return result
   } catch (error) {
