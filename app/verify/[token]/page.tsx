@@ -83,7 +83,7 @@ function VerifyContent() {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.events.owned https://www.googleapis.com/auth/gmail.modify',
+            scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.modify',
             redirectTo: `${window.location.origin}/verify/${verificationToken}`,
             queryParams: {
               access_type: 'offline',
@@ -208,6 +208,9 @@ function VerifyContent() {
           }
         }
 
+        // Get user's timezone from browser
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -220,6 +223,7 @@ function VerifyContent() {
             avatar_url: user.user_metadata?.avatar_url || null,
             first_name: firstName || null,
             last_name: lastName || null,
+            timezone: userTimezone,
           })
 
         if (insertError) {
@@ -229,6 +233,20 @@ function VerifyContent() {
         }
 
         console.log('Profile created successfully')
+
+        // Link all past messages to this user profile
+        const { error: linkError } = await supabase
+          .from('imessages')
+          .update({ profile_id: user.id })
+          .eq('sender', pendingVerification.phone_number)
+          .is('profile_id', null)
+
+        if (linkError) {
+          console.error('Failed to link past messages:', linkError)
+          // Don't fail the whole flow - just log the error
+        } else {
+          console.log('Successfully linked past messages to profile')
+        }
 
         // Delete the pending verification
         await supabase
