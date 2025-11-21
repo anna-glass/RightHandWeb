@@ -464,7 +464,7 @@ async function handleClaudeConversation(
     },
     {
       name: "create_reminder",
-      description: "create a reminder to notify the user at a specific time. use this when the user asks to be reminded about something",
+      description: "create a ONE-TIME reminder to notify the user at a specific time. use this for single reminders like 'remind me tomorrow at 5pm'. for RECURRING/REPEATING reminders (daily, weekly, etc), use create_digest instead.",
       input_schema: {
         type: "object",
         properties: {
@@ -505,13 +505,13 @@ async function handleClaudeConversation(
     },
     {
       name: "create_digest",
-      description: "create a recurring digest that sends scheduled summaries. use when user wants daily/weekly updates like 'show me my events every morning' or 'weekly email summary'",
+      description: "create a recurring scheduled message. use for: 1) daily/weekly digests like 'show me my events every morning', 2) RECURRING REMINDERS like 'remind me to water plants every day at 9am' or 'remind me to take medicine every weekday'. this is the ONLY way to create recurring/repeating reminders - the regular create_reminder tool is for one-time only.",
       input_schema: {
         type: "object",
         properties: {
           prompt: {
             type: "string",
-            description: "what information to include in the digest (e.g. 'show me all my events today', 'summarize my emails from this week')"
+            description: "what to send - can be a digest request (e.g. 'show me all my events today') OR a recurring reminder (e.g. 'remind me to water my plants', 'take your vitamins!')"
           },
           time: {
             type: "string",
@@ -1302,7 +1302,8 @@ async function handleClaudeConversation(
   return "..."
 }
 
-// Helper function to generate cron expression for Qstash (UTC-based)
+// Helper function to generate cron expression for Qstash
+// Uses CRON_TZ prefix so Qstash handles timezone conversion automatically
 function generateCronExpression(
   localHour: number,
   localMinute: number,
@@ -1310,29 +1311,18 @@ function generateCronExpression(
   dayOfWeek?: number,
   timezone: string = 'America/Los_Angeles'
 ): string {
-  // Convert local time to UTC
-  // Create a date in the user's timezone at the specified time
-  const now = new Date()
-  const userDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
-  userDate.setHours(localHour, localMinute, 0, 0)
-
-  // Get the UTC equivalent
-  const utcDate = new Date(userDate.toLocaleString('en-US', { timeZone: 'UTC' }))
-  const utcHour = utcDate.getHours()
-  const utcMinute = utcDate.getMinutes()
-
   // Cron format: minute hour day-of-month month day-of-week
-  // Example: "30 14 * * 1" = Every Monday at 2:30pm UTC
+  // Example: "CRON_TZ=America/New_York 30 14 * * 1" = Every Monday at 2:30pm Eastern
 
   if (frequency === 'daily') {
-    // Run every day at the specified UTC time
-    return `${utcMinute} ${utcHour} * * *`
+    // Run every day at the specified time in user's timezone
+    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * *`
   } else if (frequency === 'weekdays') {
-    // Run Monday-Friday (1-5) at the specified UTC time
-    return `${utcMinute} ${utcHour} * * 1-5`
+    // Run Monday-Friday (1-5) at the specified time in user's timezone
+    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 1-5`
   } else if (frequency === 'weekly' && dayOfWeek !== undefined) {
-    // Run on specific day of week at the specified UTC time
-    return `${utcMinute} ${utcHour} * * ${dayOfWeek}`
+    // Run on specific day of week at the specified time in user's timezone
+    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * ${dayOfWeek}`
   }
 
   throw new Error('Invalid frequency or missing day_of_week')
