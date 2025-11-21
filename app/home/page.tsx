@@ -157,7 +157,7 @@ END:VCARD`
       {/* Contact Card Modal */}
       {showContactCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-8 z-50">
-          <div className="relative bg-white rounded-[40px] p-8 max-w-lg w-full h-[800px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
+          <div className="relative bg-white rounded-[40px] p-8 max-w-md w-full h-[700px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
             {/* Contact Card */}
             <div className="flex flex-col items-center h-full justify-between">
               {/* Avatar at top */}
@@ -266,9 +266,9 @@ END:VCARD`
         {/* Dark overlay - hide when contact card is open */}
         {!showContactCard && <div className="absolute inset-0 bg-black/50 z-0"></div>}
 
-        <div className="relative max-w-lg mx-auto z-10 flex items-center justify-center min-h-screen">
+        <div className="relative max-w-md mx-auto z-10 flex items-center justify-center min-h-screen">
         {/* Profile Card */}
-        <div className="bg-[#222221] rounded-[40px] p-8 space-y-6 h-[800px] overflow-auto min-w-lg w-full">
+        <div className="bg-[#222221] rounded-[40px] p-8 space-y-6 h-[700px] overflow-auto w-full">
           {/* Mac Window Controls */}
           <div className="flex items-center gap-2.5 mt-0 ml-0 mb-4">
             <button className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-colors" title="Close" />
