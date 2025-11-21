@@ -178,7 +178,7 @@ END:VCARD`
 
       {/* Contact Card Modal */}
       {showContactCard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-12 p-6 z-50">
           <div className="relative bg-[#222221] rounded-[32px] p-6 max-w-sm w-full h-[600px] overflow-auto">
             {/* Contact Card */}
             <div className="flex flex-col items-center h-full justify-center">
@@ -277,7 +277,7 @@ END:VCARD`
         {/* Dark overlay - hide when contact card is open */}
         {!showContactCard && <div className="absolute inset-0 bg-black/50 z-0"></div>}
 
-        <div className="relative max-w-sm mx-auto z-10 flex items-center justify-center min-h-screen">
+        <div className="relative max-w-sm mx-auto z-10 flex items-start justify-center pt-12 min-h-screen">
         {/* Profile Card */}
         <div className="bg-[#222221] rounded-[32px] p-6 space-y-5 h-[600px] overflow-auto w-full">
           {/* Mac Window Controls */}
