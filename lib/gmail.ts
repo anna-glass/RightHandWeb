@@ -64,12 +64,8 @@ export async function searchEmails(
   try {
     const { gmail } = await getGmailClient(userId)
 
-    // Build the search query - default to primary inbox (excludes Promotions, Social, etc.)
-    let searchQuery = 'category:primary'
-
-    if (params.query) {
-      searchQuery += ` ${params.query}`
-    }
+    // Build the search query
+    let searchQuery = params.query || ''
 
     // Add date filters if provided
     // Gmail uses after:YYYY/MM/DD and before:YYYY/MM/DD format
@@ -387,7 +383,7 @@ export async function getRecentEmails(
     const response = await gmail.users.messages.list({
       userId: 'me',
       maxResults,
-      q: 'category:primary', // Only primary inbox (excludes Promotions, Social, etc.)
+      labelIds: ['INBOX'],
     })
 
     const messages = response.data.messages || []
