@@ -1147,6 +1147,7 @@ async function handleClaudeConversation(
                     digests: []
                   }
                 } else {
+                  console.log('Digests found:', digests.map(d => ({ id: d.id, qstash_schedule_id: d.qstash_schedule_id })))
                   result = {
                     success: true,
                     digests: digests.map(d => ({
@@ -1170,18 +1171,35 @@ async function handleClaudeConversation(
               const input = toolUse.input as DeleteDigestInput
 
               try {
-                // Get the digest to find the Qstash schedule ID
-                const { data: digest, error: fetchError } = await supabase
+                console.log('Attempting to delete digest:', input.digest_id, 'for user:', userId)
+
+                // Try to find by Supabase ID first
+                let { data: digest, error: fetchError } = await supabase
                   .from('digests')
-                  .select('qstash_schedule_id')
+                  .select('id, qstash_schedule_id')
                   .eq('id', input.digest_id)
                   .eq('user_id', userId!)
                   .single()
 
+                // If not found by Supabase ID, try by Qstash schedule ID
+                if (!digest) {
+                  console.log('Not found by id, trying qstash_schedule_id...')
+                  const result2 = await supabase
+                    .from('digests')
+                    .select('id, qstash_schedule_id')
+                    .eq('qstash_schedule_id', input.digest_id)
+                    .eq('user_id', userId!)
+                    .single()
+                  digest = result2.data
+                  fetchError = result2.error
+                }
+
+                console.log('Digest lookup result:', { digest, fetchError })
+
                 if (fetchError || !digest) {
                   result = {
                     success: false,
-                    error: "Digest not found or you don't have permission to delete it"
+                    error: `Digest not found. ID tried: ${input.digest_id}`
                   }
                 } else {
                   // Delete the Qstash schedule using SDK
@@ -1196,7 +1214,7 @@ async function handleClaudeConversation(
                   const { error: deleteError } = await supabase
                     .from('digests')
                     .delete()
-                    .eq('id', input.digest_id)
+                    .eq('id', digest.id)
                     .eq('user_id', userId!)
 
                   if (deleteError) {
