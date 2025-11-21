@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { formatPhoneNumberE164 } from '@/lib/phone-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,10 +52,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. ATOMICALLY SAVE MESSAGE (ACID compliance)
+    const formattedPhone = formatPhoneNumberE164(payload.external_id)
     const messageData = {
       event: eventType,
       message_id: payload.message_id,
-      sender: payload.external_id,
+      sender: formattedPhone,
       text: payload.text,
       attachments: payload.attachments,
       protocol: payload.protocol,
@@ -94,7 +96,7 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messageId: payload.message_id,
-          sender: payload.external_id,
+          sender: formattedPhone,
           text: payload.text
         })
       }).catch((error) => {

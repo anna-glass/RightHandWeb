@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
-import { Send, Search, Plus } from "lucide-react"
+import { Search, Plus } from "lucide-react"
 import { SyncLoader } from "react-spinners"
 
 interface UserProfile {
@@ -40,14 +40,10 @@ export default function AdminPage() {
 
   // Conversation state
   const [messages, setMessages] = React.useState<Message[]>([])
-  const [newMessage, setNewMessage] = React.useState("")
 
   // Users list state
   const [users, setUsers] = React.useState<UserProfile[]>([])
   const [selectedUser, setSelectedUser] = React.useState<UserProfile | null>(null)
-
-  // Notes state
-  const [notes, setNotes] = React.useState("")
 
   // Search state
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -151,10 +147,24 @@ export default function AdminPage() {
 
   const loadUserMessages = async (profileId: string) => {
     try {
+      // First get the user's phone number
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone_number')
+        .eq('id', profileId)
+        .single()
+
+      if (!profile?.phone_number) {
+        console.log('No phone number found for profile')
+        setMessages([])
+        return
+      }
+
+      // Load messages by matching sender phone number OR profile_id
       const { data, error } = await supabase
         .from('imessages')
         .select('*')
-        .eq('profile_id', profileId)
+        .or(`profile_id.eq.${profileId},sender.eq.${profile.phone_number}`)
         .order('created_at', { ascending: true })
 
       if (error) {
@@ -168,6 +178,47 @@ export default function AdminPage() {
     }
   }
 
+  // Set up real-time subscription for messages
+  React.useEffect(() => {
+    if (!selectedUser?.id || !selectedUser?.phone_number) return
+
+    // Subscribe to new messages for the selected user by phone number
+    const channel = supabase
+      .channel(`messages:${selectedUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'imessages',
+          filter: `sender=eq.${selectedUser.phone_number}`
+        },
+        (payload) => {
+          console.log('Message change:', payload)
+          if (payload.eventType === 'INSERT') {
+            setMessages((prev) => [...prev, payload.new as Message])
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.message_id === (payload.new as Message).message_id
+                  ? (payload.new as Message)
+                  : msg
+              )
+            )
+          } else if (payload.eventType === 'DELETE') {
+            setMessages((prev) =>
+              prev.filter((msg) => msg.message_id !== (payload.old as Message).message_id)
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedUser?.id, selectedUser?.phone_number, supabase])
+
   const handleUserSelect = (user: UserProfile) => {
     setSelectedUser(user)
     loadUserMessages(user.id) // Load iMessages for this user
@@ -176,22 +227,6 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/signin')
-  }
-
-  const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedUser) return
-
-    const message: Message = {
-      id: Date.now(),
-      content: newMessage,
-      text: newMessage,
-      sender: 'admin',
-      timestamp: new Date().toISOString(),
-      event: 'message.sent'
-    }
-
-    setMessages([...messages, message])
-    setNewMessage("")
   }
 
   // Format date smartly based on how recent it is
@@ -288,7 +323,7 @@ export default function AdminPage() {
       {/* Main Content */}
       <div className="relative z-10 flex flex-1 p-6 pt-0">
         {/* White rounded container */}
-        <div className="flex flex-1 gap-4 bg-white rounded-3xl p-3 shadow-2xl">
+        <div className="flex flex-1 gap-4 bg-white rounded-3xl p-3 shadow-2xl max-w-5xl mx-auto w-full">
         {/* Left Panel - Users List */}
         <div className="w-80 flex flex-col bg-white rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.1)] overflow-hidden">
           {/* Mac Window Controls */}
@@ -381,35 +416,55 @@ export default function AdminPage() {
       <div className="flex-1 flex flex-col rounded-2xl overflow-hidden relative">
         {selectedUser ? (
           <>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 pt-24 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.message_id}
-                  className={cn(
-                    "flex",
-                    message.event === 'message.sent' ? "justify-end" : "justify-start"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "max-w-md rounded-2xl px-4 py-2",
-                      message.event === 'message.sent'
-                        ? "bg-[#007AFF]"
-                        : "bg-gray-100"
-                    )}
-                  >
-                    <p className={cn(
-                      "text-base",
-                      message.event === 'message.sent' ? "text-white" : "text-gray-900"
-                    )}>{message.text || message.content}</p>
+            {/* Messages - Full Height Scrollable Container */}
+            <div className="absolute inset-0 overflow-y-auto overflow-x-hidden">
+              <div className="p-4 pt-24 pb-20 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full min-h-[400px]">
+                    <p className={cn(typography.body, "text-muted-foreground")}>
+                      No messages yet
+                    </p>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  messages.map((message, index) => (
+                    <div
+                      key={message.message_id || index}
+                      className={cn(
+                        "flex",
+                        message.event === 'message.sent' ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "max-w-md rounded-2xl px-4 py-2",
+                          message.event === 'message.sent'
+                            ? "bg-[#007AFF]"
+                            : "bg-gray-100"
+                        )}
+                      >
+                        <p className={cn(
+                          "text-base whitespace-pre-wrap break-words",
+                          message.event === 'message.sent' ? "text-white" : "text-gray-900"
+                        )}>{message.text || message.content}</p>
+                        <p className={cn(
+                          "text-xs mt-1",
+                          message.event === 'message.sent' ? "text-white/70" : "text-gray-500"
+                        )}>
+                          {message.created_at && new Date(message.created_at).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Overlaid Profile Header */}
-            <div className="absolute top-0 left-0 right-0 flex justify-center pt-4 z-10">
+            <div className="absolute top-0 left-0 right-0 flex justify-center pt-4 z-10 pointer-events-none">
               <div className="flex flex-col items-center">
                 {/* Profile Image with negative margin to overlap capsule */}
                 {selectedUser?.avatar_url ? (
@@ -441,11 +496,14 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Message Input - iMessage Style */}
-            <div className="p-4">
+            {/* Overlaid Message Input - iMessage Style (Disabled for display only) */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 opacity-50 z-10 pointer-events-none">
               <div className="flex items-center gap-3">
                 {/* Plus Button */}
-                <button className="h-9 w-9 rounded-full bg-white hover:bg-gray-50 transition-colors flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.1)]">
+                <button
+                  disabled
+                  className="h-9 w-9 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.1)] cursor-not-allowed"
+                >
                   <Plus className="w-5 h-5 text-gray-700" />
                 </button>
 
@@ -454,24 +512,10 @@ export default function AdminPage() {
                   <Input
                     type="text"
                     placeholder="iMessage"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSendMessage()
-                      }
-                    }}
-                    className="flex-1 bg-transparent border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-base placeholder:text-gray-500"
+                    value=""
+                    disabled
+                    className="flex-1 bg-transparent border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-base placeholder:text-gray-500 cursor-not-allowed"
                   />
-                  {newMessage.trim() && (
-                    <button
-                      onClick={handleSendMessage}
-                      className="flex-shrink-0"
-                    >
-                      <Send className="w-4 h-4 text-blue-500" />
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -484,20 +528,7 @@ export default function AdminPage() {
           </div>
         )}
       </div>
-
-        {/* Right Panel - Notes */}
-        <div className="w-[480px] flex flex-col bg-gray-50 overflow-hidden -mr-3 -mt-3 -mb-3 rounded-r-3xl border-l border-gray-200">
-        {/* Notes Content */}
-        <div className="flex-1 p-4">
-          <textarea
-            placeholder="Take notes here..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full h-full resize-none border-0 bg-transparent rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-primary/20 text-base"
-          />
         </div>
-        </div>
-      </div>
     </div>
     </div>
   )

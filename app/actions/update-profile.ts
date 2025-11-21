@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { formatPhoneNumberE164 } from '@/lib/phone-utils'
 
 interface UpdateProfileData {
   first_name: string
@@ -20,13 +21,16 @@ export async function updateProfile(data: UpdateProfileData) {
       return { success: false, error: 'Not authenticated' }
     }
 
+    // Ensure phone number is in E.164 format for Blooio
+    const formattedPhone = formatPhoneNumberE164(data.phone_number)
+
     // Update the profile
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         first_name: data.first_name,
         last_name: data.last_name,
-        phone_number: data.phone_number,
+        phone_number: formattedPhone,
         avatar_url: data.avatar_url || null,
         updated_at: new Date().toISOString()
       })

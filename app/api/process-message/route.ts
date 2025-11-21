@@ -16,6 +16,7 @@ import {
   sendDraft
 } from '@/lib/gmail'
 import { getAuthenticatedSystemPrompt, getUnauthenticatedSystemPrompt } from '@/lib/system-prompts'
+import { formatPhoneNumberE164 } from '@/lib/phone-utils'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -1354,13 +1355,14 @@ function generateCronExpression(
 // Helper function to send signup link
 async function sendSignupLink(input: { phone_number: string }) {
   const { phone_number } = input
+  const formattedPhone = formatPhoneNumberE164(phone_number)
   const verificationToken = generateVerificationToken(10)
 
   // Check if there's already a pending verification for this phone number
   const { data: existing } = await supabase
     .from('pending_verifications')
     .select('verification_token')
-    .eq('phone_number', phone_number)
+    .eq('phone_number', formattedPhone)
     .maybeSingle()
 
   const tokenToUse = existing?.verification_token || verificationToken
@@ -1370,7 +1372,7 @@ async function sendSignupLink(input: { phone_number: string }) {
     const { error } = await supabase
       .from('pending_verifications')
       .insert({
-        phone_number: phone_number,
+        phone_number: formattedPhone,
         verification_token: verificationToken,
         created_at: new Date().toISOString()
       })
@@ -1387,7 +1389,7 @@ async function sendSignupLink(input: { phone_number: string }) {
   // Send the verification link via Blooio
   try {
     await sendBlooioMessage(
-      phone_number,
+      formattedPhone,
       verificationUrl
     )
 
