@@ -1,4 +1,5 @@
 import { google } from 'googleapis'
+import type { calendar_v3 } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -84,8 +85,9 @@ export async function getCalendarEvents(
       console.log('Test query (no date filter):', {
         totalEventsInCalendar: testResponse.data.items?.length || 0
       })
-    } catch (testError: any) {
-      console.error('Test query failed:', testError.message)
+    } catch (testError: unknown) {
+      const errorMessage = testError instanceof Error ? testError.message : String(testError)
+      console.error('Test query failed:', errorMessage)
     }
 
     const response = await calendar.events.list({
@@ -119,16 +121,19 @@ export async function getCalendarEvents(
         description: event.description,
       }))
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to fetch events'
     console.error('Error fetching calendar events:', error)
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      errors: error.errors
-    })
+    if (error && typeof error === 'object' && 'message' in error) {
+      console.error('Error details:', {
+        message: (error as { message?: unknown }).message,
+        code: (error as { code?: unknown }).code,
+        errors: (error as { errors?: unknown }).errors
+      })
+    }
     return {
       success: false,
-      error: error.message || 'failed to fetch events'
+      error: errorMessage
     }
   }
 }
@@ -156,7 +161,7 @@ export async function createCalendarEvent(
       ? params.attendees.split(',').map(email => ({ email: email.trim() }))
       : undefined
 
-    const event: any = {
+    const event: calendar_v3.Schema$Event = {
       summary: params.summary,
       description: params.description,
       location: params.location,
@@ -188,11 +193,12 @@ export async function createCalendarEvent(
         end: response.data.end?.dateTime || response.data.end?.date,
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to create event'
     console.error('Error creating calendar event:', error)
     return {
       success: false,
-      error: error.message || 'failed to create event'
+      error: errorMessage
     }
   }
 }
@@ -234,7 +240,7 @@ export async function updateCalendarEvent(
     console.log('attendeesList:', attendeesList)
 
     // Build update object
-    const updates: any = {
+    const updates: calendar_v3.Schema$Event = {
       summary: params.summary || existing.data.summary,
       description: params.description !== undefined ? params.description : existing.data.description,
       location: params.location !== undefined ? params.location : existing.data.location,
@@ -291,11 +297,12 @@ export async function updateCalendarEvent(
         end: response.data.end?.dateTime || response.data.end?.date,
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to update event'
     console.error('Error updating calendar event:', error)
     return {
       success: false,
-      error: error.message || 'failed to update event'
+      error: errorMessage
     }
   }
 }
@@ -317,11 +324,12 @@ export async function deleteCalendarEvent(
       success: true,
       message: 'event deleted'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to delete event'
     console.error('Error deleting calendar event:', error)
     return {
       success: false,
-      error: error.message || 'failed to delete event'
+      error: errorMessage
     }
   }
 }

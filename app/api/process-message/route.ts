@@ -9,7 +9,6 @@ import {
   deleteCalendarEvent
 } from '@/lib/google-calendar'
 import {
-  sendEmail as sendGmailEmail,
   getRecentEmails,
   searchEmails,
   createDraft,
@@ -21,6 +20,94 @@ import { getAuthenticatedSystemPrompt, getUnauthenticatedSystemPrompt } from '@/
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for Claude processing
+
+// Type definitions for tool inputs
+interface SignupLinkInput {
+  phone_number: string
+}
+
+interface CalendarEventsInput {
+  start_date: string
+  end_date?: string
+}
+
+interface CreateCalendarEventInput {
+  summary: string
+  start: string
+  end: string
+  description?: string
+  location?: string
+  attendees?: string
+}
+
+interface UpdateCalendarEventInput {
+  event_id: string
+  summary?: string
+  start?: string
+  end?: string
+  description?: string
+  location?: string
+  attendees?: string
+}
+
+interface DeleteCalendarEventInput {
+  event_id: string
+}
+
+interface CreateEmailDraftInput {
+  to: string
+  subject: string
+  body: string
+  cc?: string
+  bcc?: string
+}
+
+interface SendPendingDraftInput {
+  recipient?: string
+}
+
+interface UpdatePendingDraftInput {
+  subject?: string
+  body?: string
+  recipient?: string
+}
+
+interface SearchEmailsInput {
+  query: string
+  max_results?: number
+}
+
+interface GetRecentEmailsInput {
+  max_results?: number
+}
+
+interface CreateReminderInput {
+  intent: string
+  time: string
+}
+
+interface CancelReminderInput {
+  reminder_id: string
+}
+
+interface CreateDigestInput {
+  prompt: string
+  time: string
+  frequency: 'daily' | 'weekdays' | 'weekly'
+  day_of_week?: number
+}
+
+interface DeleteDigestInput {
+  digest_id: string
+}
+
+// Tool result types
+interface ToolResult {
+  success?: boolean
+  error?: string
+  message?: string
+  [key: string]: unknown
+}
 
 // Initialize clients
 const supabase = createClient(
@@ -135,8 +222,9 @@ async function processMessage(messageId: string, sender: string, text: string) {
   try {
     await sendBlooioMessage(sender, response)
     console.log('Message processing complete:', messageId)
-  } catch (blooioError: any) {
-    console.error('Failed to send via Blooio after retries:', blooioError.message)
+  } catch (blooioError: unknown) {
+    const errorMessage = blooioError instanceof Error ? blooioError.message : String(blooioError)
+    console.error('Failed to send via Blooio after retries:', errorMessage)
     // Don't throw - we processed the message, just couldn't deliver
   }
 }
@@ -505,21 +593,22 @@ async function handleClaudeConversation(
       const toolResults = await Promise.all(
         toolCalls.map(async (toolUse) => {
           console.log(`Calling tool: ${toolUse.name}`, JSON.stringify(toolUse.input, null, 2))
-          let result: any
+          let result: ToolResult
 
           try {
             if (toolUse.name === "send_signup_link") {
-              result = await sendSignupLink(toolUse.input as { phone_number: string })
+              result = await sendSignupLink(toolUse.input as SignupLinkInput)
             } else if (toolUse.name === "get_calendar_events") {
+              const input = toolUse.input as CalendarEventsInput
               result = await getCalendarEvents(
                 userId!,
-                (toolUse.input as any).start_date,
-                (toolUse.input as any).end_date
+                input.start_date,
+                input.end_date
               )
             } else if (toolUse.name === "create_calendar_event") {
-              result = await createCalendarEvent(userId!, toolUse.input as any)
+              result = await createCalendarEvent(userId!, toolUse.input as CreateCalendarEventInput)
             } else if (toolUse.name === "update_calendar_event") {
-              const input = toolUse.input as any
+              const input = toolUse.input as UpdateCalendarEventInput
               result = await updateCalendarEvent(userId!, input.event_id, {
                 summary: input.summary,
                 start: input.start,
@@ -529,13 +618,14 @@ async function handleClaudeConversation(
                 attendees: input.attendees
               })
             } else if (toolUse.name === "delete_calendar_event") {
+              const input = toolUse.input as DeleteCalendarEventInput
               result = await deleteCalendarEvent(
                 userId!,
-                (toolUse.input as any).event_id
+                input.event_id
               )
             } else if (toolUse.name === "create_email_draft") {
               // Create Gmail draft and store in pending_email_drafts table
-              const input = toolUse.input as any
+              const input = toolUse.input as CreateEmailDraftInput
               const draftResult = await createDraft(userId!, {
                 to: input.to,
                 subject: input.subject,
@@ -578,7 +668,7 @@ async function handleClaudeConversation(
               }
             } else if (toolUse.name === "send_pending_draft") {
               // Find and send the pending draft
-              const input = toolUse.input as any
+              const input = toolUse.input as SendPendingDraftInput
               console.log('Looking for pending draft for user:', userId)
 
               let query = supabase
@@ -629,7 +719,7 @@ async function handleClaudeConversation(
               }
             } else if (toolUse.name === "update_pending_draft") {
               // Find and update the pending draft
-              const input = toolUse.input as any
+              const input = toolUse.input as UpdatePendingDraftInput
               let query = supabase
                 .from('pending_email_drafts')
                 .select('*')
@@ -665,14 +755,15 @@ async function handleClaudeConversation(
                 }
               }
             } else if (toolUse.name === "search_emails") {
-              result = await searchEmails(userId!, toolUse.input as any)
+              result = await searchEmails(userId!, toolUse.input as SearchEmailsInput)
             } else if (toolUse.name === "get_recent_emails") {
+              const input = toolUse.input as GetRecentEmailsInput
               result = await getRecentEmails(
                 userId!,
-                (toolUse.input as any)?.max_results || 10
+                input?.max_results || 10
               )
             } else if (toolUse.name === "create_reminder") {
-              const input = toolUse.input as { intent: string; time: string }
+              const input = toolUse.input as CreateReminderInput
               const reminderTime = new Date(input.time)
               const now = new Date()
 
@@ -752,11 +843,12 @@ async function handleClaudeConversation(
                       message: `Reminder set for ${reminderTime.toLocaleString()}`,
                       reminder_id: reminderData.id
                     }
-                  } catch (error: any) {
+                  } catch (error: unknown) {
+                    const errorMessage = error instanceof Error ? error.message : String(error)
                     console.error('Error creating reminder:', error)
                     result = {
                       success: false,
-                      error: `Failed to create reminder: ${error.message}`
+                      error: `Failed to create reminder: ${errorMessage}`
                     }
                   }
                 }
@@ -792,14 +884,15 @@ async function handleClaudeConversation(
                     }))
                   }
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error)
                 result = {
                   success: false,
-                  error: `Failed to list reminders: ${error.message}`
+                  error: `Failed to list reminders: ${errorMessage}`
                 }
               }
             } else if (toolUse.name === "cancel_reminder") {
-              const input = toolUse.input as { reminder_id: string }
+              const input = toolUse.input as CancelReminderInput
 
               try {
                 // Get the reminder to find the Qstash message ID
@@ -856,19 +949,15 @@ async function handleClaudeConversation(
                     }
                   }
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error)
                 result = {
                   success: false,
-                  error: `Failed to cancel reminder: ${error.message}`
+                  error: `Failed to cancel reminder: ${errorMessage}`
                 }
               }
             } else if (toolUse.name === "create_digest") {
-              const input = toolUse.input as {
-                prompt: string;
-                time: string;
-                frequency: 'daily' | 'weekdays' | 'weekly';
-                day_of_week?: number;
-              }
+              const input = toolUse.input as CreateDigestInput
 
               // Parse time (HH:MM format)
               const timeMatch = input.time.match(/^(\d{1,2}):(\d{2})$/)
@@ -1011,11 +1100,12 @@ async function handleClaudeConversation(
                     message: `Digest created! You'll receive "${input.prompt}" ${frequencyText} at ${input.time}`,
                     digest_id: digestData.id
                   }
-                } catch (error: any) {
+                } catch (error: unknown) {
+                  const errorMessage = error instanceof Error ? error.message : String(error)
                   console.error('Error creating digest:', error)
                   result = {
                     success: false,
-                    error: `Failed to create digest: ${error.message}`
+                    error: `Failed to create digest: ${errorMessage}`
                   }
                 }
               }
@@ -1053,14 +1143,15 @@ async function handleClaudeConversation(
                     }))
                   }
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error)
                 result = {
                   success: false,
-                  error: `Failed to list digests: ${error.message}`
+                  error: `Failed to list digests: ${errorMessage}`
                 }
               }
             } else if (toolUse.name === "delete_digest") {
-              const input = toolUse.input as { digest_id: string }
+              const input = toolUse.input as DeleteDigestInput
 
               try {
                 // Get the digest to find the Qstash schedule ID
@@ -1112,10 +1203,11 @@ async function handleClaudeConversation(
                     }
                   }
                 }
-              } catch (error: any) {
+              } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error)
                 result = {
                   success: false,
-                  error: `Failed to delete digest: ${error.message}`
+                  error: `Failed to delete digest: ${errorMessage}`
                 }
               }
             } else {
@@ -1128,12 +1220,13 @@ async function handleClaudeConversation(
               tool_use_id: toolUse.id,
               content: JSON.stringify(result)
             }
-          } catch (error: any) {
-            console.error(`❌ Tool error for ${toolUse.name}:`, error.message)
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            console.error(`❌ Tool error for ${toolUse.name}:`, errorMessage)
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
-              content: JSON.stringify({ error: error.message }),
+              content: JSON.stringify({ error: errorMessage }),
               is_error: true
             }
           }
@@ -1195,8 +1288,10 @@ async function handleClaudeConversation(
   if (lastAssistantMessage && lastAssistantMessage.role === 'assistant') {
     const content = lastAssistantMessage.content
     if (Array.isArray(content)) {
-      const textBlock = content.find((block: any) => block.type === "text")
-      if (textBlock && 'text' in textBlock) {
+      const textBlock = content.find((block): block is Anthropic.TextBlock =>
+        typeof block === 'object' && block !== null && 'type' in block && block.type === "text"
+      )
+      if (textBlock) {
         let text = textBlock.text.trim()
 
         // Deduplicate here too
@@ -1378,12 +1473,13 @@ async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: 
         await new Promise(resolve => setTimeout(resolve, backoffMs))
       }
 
-    } catch (error: any) {
-      console.error(`Error on attempt ${attempt}:`, error.message)
-      lastError = error
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`Error on attempt ${attempt}:`, errorMessage)
+      lastError = error instanceof Error ? error : new Error(String(error))
 
       // If it's a non-retryable error, throw immediately
-      if (error.message?.includes('Non-retryable')) {
+      if (error instanceof Error && error.message?.includes('Non-retryable')) {
         throw error
       }
 

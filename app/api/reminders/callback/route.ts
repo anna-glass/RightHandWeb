@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Parse the verified body
-      const { phoneNumber, intent, userId, reminderId } = JSON.parse(body)
+      const { phoneNumber, intent, reminderId } = JSON.parse(body)
 
       console.log('📅 Reminder callback received (verified):', { phoneNumber, intent, reminderId })
 
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       // Development mode - no signature verification
       console.warn('⚠️ Running without Qstash signature verification (development mode)')
 
-      const { phoneNumber, intent, userId, reminderId } = await req.json()
+      const { phoneNumber, intent, reminderId } = await req.json()
 
       console.log('📅 Reminder callback received (unverified):', { phoneNumber, intent, reminderId })
 

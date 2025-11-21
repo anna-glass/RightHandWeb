@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { Receiver } from '@upstash/qstash'
-import { getCalendarEvents } from '@/lib/google-calendar'
 import { getAuthenticatedSystemPrompt } from '@/lib/system-prompts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+// Type for calendar events tool input
+interface CalendarEventsInput {
+  start_date: string
+  end_date?: string
+}
 
 // Initialize clients
 const supabase = createClient(
@@ -187,10 +192,11 @@ async function generateDigestContent(
         toolCalls.map(async (toolUse) => {
           if (toolUse.name === "get_calendar_events") {
             const { getCalendarEvents } = await import('@/lib/google-calendar')
+            const input = toolUse.input as CalendarEventsInput
             const result = await getCalendarEvents(
               userId,
-              (toolUse.input as any).start_date,
-              (toolUse.input as any).end_date
+              input.start_date,
+              input.end_date
             )
             return {
               type: "tool_result" as const,
@@ -264,7 +270,8 @@ async function sendBlooioMessage(phoneNumber: string, text: string): Promise<{ s
     }
 
     return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    return { success: false, error: errorMessage }
   }
 }

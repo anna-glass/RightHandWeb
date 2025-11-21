@@ -109,11 +109,12 @@ export async function searchEmails(
       success: true,
       emails: fullMessages
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to search emails'
     console.error('Error searching emails:', error)
     return {
       success: false,
-      error: error.message || 'failed to search emails'
+      error: errorMessage
     }
   }
 }
@@ -171,11 +172,12 @@ export async function sendEmail(
       messageId: response.data.id,
       message: 'email sent'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to send email'
     console.error('Error sending email:', error)
     return {
       success: false,
-      error: error.message || 'failed to send email'
+      error: errorMessage
     }
   }
 }
@@ -229,11 +231,12 @@ export async function createDraft(
       draftId: response.data.id!,
       message: 'draft created'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to create draft'
     console.error('Error creating draft:', error)
     return {
       success: false,
-      error: error.message || 'failed to create draft'
+      error: errorMessage
     }
   }
 }
@@ -308,11 +311,12 @@ export async function updateDraft(
       draftId: response.data.id!,
       message: 'draft updated'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to update draft'
     console.error('Error updating draft:', error)
     return {
       success: false,
-      error: error.message || 'failed to update draft'
+      error: errorMessage
     }
   }
 }
@@ -339,11 +343,12 @@ export async function sendDraft(
       messageId: response.data.id,
       message: 'email sent'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to send draft'
     console.error('Error sending draft:', error)
     return {
       success: false,
-      error: error.message || 'failed to send draft'
+      error: errorMessage
     }
   }
 }
@@ -393,11 +398,12 @@ export async function getRecentEmails(
       success: true,
       emails: fullMessages
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'failed to fetch emails'
     console.error('Error fetching emails:', error)
     return {
       success: false,
-      error: error.message || 'failed to fetch emails'
+      error: errorMessage
     }
   }
 }
