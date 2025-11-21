@@ -63,16 +63,17 @@ export async function getCalendarEvents(
 
     console.log('Fetching calendar events:', { startDate, endDate, timezone })
 
-    // Parse dates more carefully - add explicit time to avoid timezone issues
-    const startDateTime = new Date(startDate + 'T00:00:00')
-    const endDateTime = endDate
-      ? new Date(endDate + 'T23:59:59')
-      : new Date(startDateTime.getTime() + 24 * 60 * 60 * 1000)
+    // Build date range in user's timezone
+    // Use RFC3339 format with timezone offset for proper timezone handling
+    const effectiveEndDate = endDate || startDate
 
-    const timeMin = startDateTime.toISOString()
-    const timeMax = endDateTime.toISOString()
+    // Create dates interpreted in the user's timezone by formatting with timezone info
+    // timeMin = start of day in user's timezone
+    // timeMax = end of day in user's timezone
+    const timeMin = `${startDate}T00:00:00`
+    const timeMax = `${effectiveEndDate}T23:59:59`
 
-    console.log('Query range:', { timeMin, timeMax })
+    console.log('Query range:', { timeMin, timeMax, timezone })
 
     // Also try to get a count of ALL events to verify auth works
     try {
@@ -94,6 +95,7 @@ export async function getCalendarEvents(
       calendarId: 'primary',
       timeMin,
       timeMax,
+      timeZone: timezone, // Interpret timeMin/timeMax in user's timezone
       singleEvents: true,
       orderBy: 'startTime',
       maxResults: 50,
