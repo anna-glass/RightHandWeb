@@ -223,7 +223,7 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 3. CALL CLAUDE WITH CONVERSATION HISTORY
   const userName = profile?.first_name || 'User'
   const userCity = profile?.city || null
-  console.log('🤖 Calling Claude...')
+  console.log('🌼 Calling Claude...')
   const response = await handleClaudeConversation(
     profile?.id || null,
     sender,
@@ -239,17 +239,9 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 4. STOP TYPING INDICATOR
   await stopTyping(sender)
 
-  // 5. SEND RESPONSE VIA BLOOIO (split by double newlines into separate messages)
+  // 5. SEND RESPONSE VIA BLOOIO
   try {
-    // Split by double newlines (empty lines) to create separate message bubbles
-    const messages = response
-      .split(/\n\n+/)
-      .map(msg => msg.trim())
-      .filter(msg => msg.length > 0)
-
-    for (const msg of messages) {
-      await sendBlooioMessage(sender, msg)
-    }
+    await sendBlooioMessage(sender, response)
   } catch (blooioError: unknown) {
     const errorMessage = blooioError instanceof Error ? blooioError.message : String(blooioError)
     console.error('Failed to send via Blooio after retries:', errorMessage)

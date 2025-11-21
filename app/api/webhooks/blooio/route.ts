@@ -95,13 +95,6 @@ export async function POST(request: NextRequest) {
       const processUrl = `${baseUrl}/api/process-message`
 
       try {
-        console.log('🚀 Queueing message processing via Qstash:', {
-          url: processUrl,
-          messageId: payload.message_id,
-          sender: formattedPhone
-        })
-
-        // Publish to Qstash - guaranteed delivery even if webhook terminates
         await qstash.publishJSON({
           url: processUrl,
           body: {
