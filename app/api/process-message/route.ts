@@ -96,8 +96,9 @@ interface CancelReminderInput {
 interface CreateDigestInput {
   prompt: string
   time: string
-  frequency: 'daily' | 'weekdays' | 'weekly'
+  frequency: 'hourly' | 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'mon_wed_fri' | 'tue_thu' | 'monthly'
   day_of_week?: number
+  day_of_month?: number
 }
 
 interface DeleteDigestInput {
@@ -546,12 +547,16 @@ async function handleClaudeConversation(
           },
           frequency: {
             type: "string",
-            description: "how often to send: 'daily', 'weekdays', or 'weekly'",
-            enum: ["daily", "weekdays", "weekly"]
+            description: "how often to send: 'hourly', 'daily', 'weekdays', 'weekends', 'weekly', 'mon_wed_fri', 'tue_thu', or 'monthly'",
+            enum: ["hourly", "daily", "weekdays", "weekends", "weekly", "mon_wed_fri", "tue_thu", "monthly"]
           },
           day_of_week: {
             type: "number",
             description: "for weekly digests only: day of week (0=Sunday, 1=Monday, ..., 6=Saturday). required if frequency is 'weekly'"
+          },
+          day_of_month: {
+            type: "number",
+            description: "for monthly digests only: day of month (1-28). required if frequency is 'monthly'"
           }
         },
         required: ["prompt", "time", "frequency"]
@@ -1059,6 +1064,7 @@ async function handleClaudeConversation(
                     send_minute,
                     input.frequency,
                     input.day_of_week,
+                    input.day_of_month,
                     userTimezone
                   )
 
@@ -1368,25 +1374,42 @@ async function handleClaudeConversation(
 function generateCronExpression(
   localHour: number,
   localMinute: number,
-  frequency: 'daily' | 'weekdays' | 'weekly',
+  frequency: 'hourly' | 'daily' | 'weekdays' | 'weekends' | 'weekly' | 'mon_wed_fri' | 'tue_thu' | 'monthly',
   dayOfWeek?: number,
+  dayOfMonth?: number,
   timezone: string = 'America/Los_Angeles'
 ): string {
   // Cron format: minute hour day-of-month month day-of-week
   // Example: "CRON_TZ=America/New_York 30 14 * * 1" = Every Monday at 2:30pm Eastern
 
-  if (frequency === 'daily') {
-    // Run every day at the specified time in user's timezone
-    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * *`
-  } else if (frequency === 'weekdays') {
-    // Run Monday-Friday (1-5) at the specified time in user's timezone
-    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 1-5`
-  } else if (frequency === 'weekly' && dayOfWeek !== undefined) {
-    // Run on specific day of week at the specified time in user's timezone
-    return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * ${dayOfWeek}`
+  switch (frequency) {
+    case 'hourly':
+      // Run every hour at the specified minute
+      return `CRON_TZ=${timezone} ${localMinute} * * * *`
+    case 'daily':
+      // Run every day at the specified time
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * *`
+    case 'weekdays':
+      // Run Monday-Friday (1-5)
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 1-5`
+    case 'weekends':
+      // Run Saturday-Sunday (0,6)
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 0,6`
+    case 'weekly':
+      if (dayOfWeek === undefined) throw new Error('day_of_week required for weekly')
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * ${dayOfWeek}`
+    case 'mon_wed_fri':
+      // Run Monday, Wednesday, Friday (1,3,5)
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 1,3,5`
+    case 'tue_thu':
+      // Run Tuesday, Thursday (2,4)
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} * * 2,4`
+    case 'monthly':
+      if (dayOfMonth === undefined) throw new Error('day_of_month required for monthly')
+      return `CRON_TZ=${timezone} ${localMinute} ${localHour} ${dayOfMonth} * *`
+    default:
+      throw new Error(`Invalid frequency: ${frequency}`)
   }
-
-  throw new Error('Invalid frequency or missing day_of_week')
 }
 
 // Helper function to send signup link

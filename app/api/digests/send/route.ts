@@ -148,6 +148,7 @@ async function generateDigestContent(
   userName: string
 ): Promise<string> {
   try {
+    console.log('🤖 Generating digest content:', { userId, prompt, userTimezone, userName })
     const systemPrompt = getAuthenticatedSystemPrompt(userTimezone, userName)
 
     const response = await anthropic.messages.create({
@@ -182,11 +183,15 @@ async function generateDigestContent(
       ]
     })
 
+    console.log('🤖 Claude initial response:', { stop_reason: response.stop_reason, content_types: response.content.map(b => b.type) })
+
     // Handle tool use if needed
     if (response.stop_reason === "tool_use") {
       const toolCalls = response.content.filter(
         (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
       )
+
+      console.log('🔧 Tool calls:', toolCalls.map(t => ({ name: t.name, input: t.input })))
 
       const toolResults = await Promise.all(
         toolCalls.map(async (toolUse) => {
@@ -198,6 +203,7 @@ async function generateDigestContent(
               input.start_date,
               input.end_date
             )
+            console.log('📅 Calendar result:', JSON.stringify(result))
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -233,19 +239,25 @@ async function generateDigestContent(
         ]
       })
 
+      console.log('🤖 Claude final response:', { stop_reason: finalResponse.stop_reason, content: finalResponse.content })
+
       const textBlock = finalResponse.content.find(
         (block): block is Anthropic.TextBlock => block.type === "text"
       )
-      return textBlock?.text.trim() || "Could not generate digest"
+      const result = textBlock?.text.trim() || "Could not generate digest"
+      console.log('📝 Final digest content:', result)
+      return result
     }
 
     // No tool use, return text directly
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text"
     )
-    return textBlock?.text.trim() || "Could not generate digest"
+    const result = textBlock?.text.trim() || "Could not generate digest"
+    console.log('📝 Digest content (no tools):', result)
+    return result
   } catch (error) {
-    console.error('Error generating digest content:', error)
+    console.error('❌ Error generating digest content:', error)
     throw error
   }
 }
