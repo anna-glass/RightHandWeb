@@ -81,17 +81,39 @@ function HomePageContent() {
     loadUserData()
   }, [supabase, router, searchParams])
 
-  const handleSaveContact = () => {
-    // Create vCard
+  const handleSaveContact = async () => {
+    // Fetch and encode the logo as base64
+    let photoBase64 = ''
+    try {
+      const response = await fetch('/righthandlogo.png')
+      const blob = await response.blob()
+      const reader = new FileReader()
+      photoBase64 = await new Promise((resolve) => {
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1]
+          resolve(base64)
+        }
+        reader.readAsDataURL(blob)
+      })
+    } catch (error) {
+      console.error('Error loading contact photo:', error)
+    }
+
+    // Create vCard with proper name formatting and photo
+    // N: format is LastName;FirstName;MiddleName;Prefix;Suffix
+    // Using empty LastName keeps "Right Hand" together as first name
     const vCard = `BEGIN:VCARD
 VERSION:3.0
 FN:${contactName}
-TEL;TYPE=CELL:${contactPhone}
+N:;${contactName};;;
+ORG:${contactName}
+TEL;TYPE=CELL:${contactPhone}${photoBase64 ? `
+PHOTO;ENCODING=b;TYPE=PNG:${photoBase64}` : ''}
 END:VCARD`
 
     // Create blob and download
-    const blob = new Blob([vCard], { type: 'text/vcard' })
-    const url = window.URL.createObjectURL(blob)
+    const vcardBlob = new Blob([vCard], { type: 'text/vcard' })
+    const url = window.URL.createObjectURL(vcardBlob)
     const link = document.createElement('a')
     link.href = url
     link.download = `${contactName}.vcf`
@@ -157,21 +179,10 @@ END:VCARD`
       {/* Contact Card Modal */}
       {showContactCard && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
-          <div className="relative bg-white rounded-[32px] p-6 max-w-sm w-full h-[600px] overflow-auto bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/contactbackground.png)' }}>
+          <div className="relative bg-[#222221] rounded-[32px] p-6 max-w-sm w-full h-[600px] overflow-auto">
             {/* Contact Card */}
-            <div className="flex flex-col items-center h-full justify-between">
-              {/* Avatar at top */}
-              <div className="relative w-40 h-40 rounded-full flex items-center justify-center overflow-hidden bg-white shadow-lg mt-3">
-                <Image
-                  src="/righthandlogo.png"
-                  alt="Right Hand"
-                  width={120}
-                  height={120}
-                  className="rounded-full"
-                />
-              </div>
-
-              {/* Everything else at bottom */}
+            <div className="flex flex-col items-center h-full justify-center">
+              {/* Content */}
               <div className="flex flex-col items-center w-full pb-3">
                 {/* Name */}
                 <h1 className="text-5xl font-bold text-white mb-6" style={{ fontFamily: 'Nunito, sans-serif' }}>{contactName}</h1>
@@ -180,25 +191,25 @@ END:VCARD`
                 <div className="flex gap-2.5 mb-3">
                   <a
                     href={`sms:${contactPhone}`}
-                    className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                    className="w-10 h-10 rounded-full bg-[#292927] flex items-center justify-center hover:bg-[#333331] transition-colors"
                   >
                     <MessageCircle className="w-5 h-5 text-white" />
                   </a>
                   <a
                     href={`tel:${contactPhone}`}
-                    className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                    className="w-10 h-10 rounded-full bg-[#292927] flex items-center justify-center hover:bg-[#333331] transition-colors"
                   >
                     <Phone className="w-5 h-5 text-white" />
                   </a>
                   <a
                     href={`facetime:${contactPhone}`}
-                    className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                    className="w-10 h-10 rounded-full bg-[#292927] flex items-center justify-center hover:bg-[#333331] transition-colors"
                   >
                     <Video className="w-5 h-5 text-white" />
                   </a>
                   <a
                     href={`mailto:contact@getrighthand.com`}
-                    className="w-10 h-10 rounded-full bg-green-900/30 flex items-center justify-center hover:bg-green-900/40 transition-colors"
+                    className="w-10 h-10 rounded-full bg-[#292927] flex items-center justify-center hover:bg-[#333331] transition-colors"
                   >
                     <Mail className="w-5 h-5 text-white" />
                   </a>
@@ -207,7 +218,7 @@ END:VCARD`
                 {/* Contact Card Bubbles */}
                 <div className="w-full space-y-2.5 px-5 pt-3">
                 {/* Contact Photo & Poster */}
-                <div className="bg-green-900/30 rounded-2xl p-3 flex items-center justify-between hover:bg-green-900/40 transition-colors">
+                <div className="bg-[#292927] rounded-2xl p-3 flex items-center justify-between hover:bg-[#333331] transition-colors">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center overflow-hidden">
                       <Image
@@ -224,20 +235,20 @@ END:VCARD`
                 </div>
 
                 {/* Phone & Notes */}
-                <div className="bg-green-900/30 rounded-2xl p-3">
+                <div className="bg-[#292927] rounded-2xl p-3">
                   <div className="space-y-2.5 text-left">
                     <div>
                       <p className="text-white font-bold text-xs">mobile</p>
                       <p className="text-white text-sm">{contactPhone}</p>
                     </div>
-                    <div className="border-t border-white/20 pt-2.5 pb-5">
+                    <div className="border-t border-white/10 pt-2.5 pb-5">
                       <p className="text-white font-bold text-xs">Notes</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Save Contact & Share Contact */}
-                <div className="bg-green-900/30 rounded-2xl p-3">
+                <div className="bg-[#292927] rounded-2xl p-3">
                   <div className="space-y-2.5 text-left">
                     <button
                       onClick={handleSaveContact}
@@ -245,7 +256,7 @@ END:VCARD`
                     >
                       <p className="text-white font-bold text-sm">Save Contact</p>
                     </button>
-                    <div className="border-t border-white/20 pt-2.5">
+                    <div className="border-t border-white/10 pt-2.5">
                       <button
                         onClick={handleSaveContact}
                         className="w-full text-left hover:opacity-80 transition-opacity"
