@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { Client as QstashClient } from '@upstash/qstash'
 import { formatPhoneNumberE164 } from '@/lib/phone-utils'
 
 export const runtime = 'nodejs'
@@ -10,6 +11,11 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Initialize Qstash client for reliable background job processing
+const qstash = new QstashClient({
+  token: process.env.QSTASH_TOKEN!,
+})
 
 interface BlooioWebhookPayload {
   event: string
@@ -87,30 +93,32 @@ export async function POST(request: NextRequest) {
 
     console.log('Message saved successfully:', payload.message_id)
 
-    // 2. TRIGGER BACKGROUND PROCESSING - Await to ensure it starts before webhook returns
+    // 2. QUEUE BACKGROUND PROCESSING via Qstash (reliable in serverless)
     if (eventType === 'message.received') {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+      const processUrl = `${baseUrl}/api/process-message`
 
       try {
-        // Await the fetch to ensure it starts, but with a short timeout
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
+        console.log('🚀 Queueing message processing via Qstash:', {
+          url: processUrl,
+          messageId: payload.message_id,
+          sender: formattedPhone
+        })
 
-        await fetch(`${baseUrl}/api/process-message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        // Publish to Qstash - guaranteed delivery even if webhook terminates
+        const response = await qstash.publishJSON({
+          url: processUrl,
+          body: {
             messageId: payload.message_id,
             sender: formattedPhone,
             text: payload.text
-          }),
-          signal: controller.signal
+          }
         })
 
-        clearTimeout(timeoutId)
-        console.log('Background processing triggered successfully')
+        const messageId = Array.isArray(response) ? response[0].messageId : response.messageId
+        console.log('✅ Message queued successfully in Qstash:', messageId)
       } catch (error) {
-        console.error('Failed to trigger background processing:', error)
+        console.error('❌ Failed to queue message in Qstash:', error)
         // Don't throw - we don't want to fail the webhook
       }
     }
