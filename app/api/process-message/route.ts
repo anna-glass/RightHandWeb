@@ -102,6 +102,10 @@ interface DeleteDigestInput {
   digest_id: string
 }
 
+interface WebSearchInput {
+  query: string
+}
+
 // Tool result types
 interface ToolResult {
   success?: boolean
@@ -187,7 +191,7 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 2. LOOK UP PROFILE
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, timezone, first_name, last_name')
+    .select('id, timezone, first_name, last_name, city')
     .eq('phone_number', sender)
     .maybeSingle()
 
@@ -208,13 +212,15 @@ async function processMessage(messageId: string, sender: string, text: string) {
 
   // 3. CALL CLAUDE WITH CONVERSATION HISTORY
   const userName = profile?.first_name || 'User'
+  const userCity = profile?.city || null
   const response = await handleClaudeConversation(
     profile?.id || null,
     sender,
     text,
     profile?.timezone || 'America/Los_Angeles',
     hasPendingVerification,
-    userName
+    userName,
+    userCity
   )
 
   console.log('Claude response generated:', response.substring(0, 100) + '...')
@@ -236,7 +242,8 @@ async function handleClaudeConversation(
   userMessage: string,
   userTimezone: string = 'America/Los_Angeles',
   hasPendingVerification: boolean = false,
-  userName: string = 'User'
+  userName: string = 'User',
+  userCity: string | null = null
 ): Promise<string> {
   // Load recent conversation history (last 12 hours, no message limit)
   const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
@@ -552,6 +559,20 @@ async function handleClaudeConversation(
         },
         required: ["digest_id"]
       }
+    },
+    {
+      name: "web_search",
+      description: "search the internet for current information. use for weather, news, sports scores, facts, recommendations, current events, or any question requiring up-to-date info",
+      input_schema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "the search query (include location for local queries like weather)"
+          }
+        },
+        required: ["query"]
+      }
     }
   ]
 
@@ -560,7 +581,7 @@ async function handleClaudeConversation(
     : baseTools
 
   const systemPrompt = userId
-    ? getAuthenticatedSystemPrompt(userTimezone, userName)
+    ? getAuthenticatedSystemPrompt(userTimezone, userName, userCity)
     : getUnauthenticatedSystemPrompt(phoneNumber, userTimezone, hasPendingVerification)
 
   // Agentic loop - allow Claude to use tools
@@ -1195,6 +1216,52 @@ async function handleClaudeConversation(
                 result = {
                   success: false,
                   error: `Failed to delete digest: ${errorMessage}`
+                }
+              }
+            } else if (toolUse.name === "web_search") {
+              const input = toolUse.input as WebSearchInput
+
+              try {
+                const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    model: 'sonar',
+                    messages: [
+                      {
+                        role: 'user',
+                        content: input.query
+                      }
+                    ]
+                  })
+                })
+
+                if (!perplexityResponse.ok) {
+                  const errorText = await perplexityResponse.text()
+                  console.error('Perplexity API error:', perplexityResponse.status, errorText)
+                  result = {
+                    success: false,
+                    error: `Search failed: ${perplexityResponse.status}`
+                  }
+                } else {
+                  const data = await perplexityResponse.json()
+                  const answer = data.choices?.[0]?.message?.content || 'No results found'
+
+                  result = {
+                    success: true,
+                    answer: answer,
+                    citations: data.citations || []
+                  }
+                }
+              } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : String(error)
+                console.error('Web search error:', errorMessage)
+                result = {
+                  success: false,
+                  error: `Search failed: ${errorMessage}`
                 }
               }
             } else {

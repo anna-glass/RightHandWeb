@@ -219,6 +219,7 @@ export type Database = {
           google_refresh_token: string | null
           verified: boolean | null
           verification_token: string | null
+          city: string | null
         }
         Insert: {
           id: string
@@ -234,6 +235,7 @@ export type Database = {
           google_refresh_token?: string | null
           verified?: boolean | null
           verification_token?: string | null
+          city?: string | null
         }
         Update: {
           id?: string
@@ -249,6 +251,7 @@ export type Database = {
           google_refresh_token?: string | null
           verified?: boolean | null
           verification_token?: string | null
+          city?: string | null
         }
         Relationships: []
       }
