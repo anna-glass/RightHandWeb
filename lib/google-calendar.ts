@@ -52,6 +52,23 @@ async function getCalendarClient(userId: string) {
   return { calendar, timezone: profile.timezone || 'America/Los_Angeles' }
 }
 
+// Helper to convert local date/time to UTC ISO string
+function localToUtcIso(dateStr: string, timeStr: string, timezone: string): string {
+  // Create a date object for this date/time as if it were in UTC
+  const tempDate = new Date(`${dateStr}T${timeStr}Z`)
+
+  // Calculate the offset between UTC and the target timezone
+  const utcStr = tempDate.toLocaleString('en-US', { timeZone: 'UTC' })
+  const tzStr = tempDate.toLocaleString('en-US', { timeZone: timezone })
+  const diffMs = new Date(utcStr).getTime() - new Date(tzStr).getTime()
+
+  // Adjust: if user wants midnight local time, we need to shift by the offset
+  const localMidnight = new Date(`${dateStr}T${timeStr}`)
+  const utcEquivalent = new Date(localMidnight.getTime() + diffMs)
+
+  return utcEquivalent.toISOString()
+}
+
 // Get calendar events
 export async function getCalendarEvents(
   userId: string,
@@ -61,23 +78,17 @@ export async function getCalendarEvents(
   try {
     const { calendar, timezone } = await getCalendarClient(userId)
 
-    console.log('Fetching calendar events:', { startDate, endDate, timezone })
-
-    // Build date range in user's timezone
-    // Use RFC3339 format with timezone offset for proper timezone handling
     const effectiveEndDate = endDate || startDate
 
-    // Create dates interpreted in the user's timezone by formatting with timezone info
-    // timeMin = start of day in user's timezone
-    // timeMax = end of day in user's timezone
-    const timeMin = `${startDate}T00:00:00`
-    const timeMax = `${effectiveEndDate}T23:59:59`
+    // Convert local date range to UTC timestamps
+    // e.g., "2025-11-21" in America/Los_Angeles becomes 2025-11-21T08:00:00Z (midnight PST = 8am UTC)
+    const timeMin = localToUtcIso(startDate, '00:00:00', timezone)
+    const timeMax = localToUtcIso(effectiveEndDate, '23:59:59', timezone)
 
     const response = await calendar.events.list({
       calendarId: 'primary',
       timeMin,
       timeMax,
-      timeZone: timezone, // Interpret timeMin/timeMax in user's timezone
       singleEvents: true,
       orderBy: 'startTime',
       maxResults: 50,
