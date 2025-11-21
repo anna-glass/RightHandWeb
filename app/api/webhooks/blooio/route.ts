@@ -87,22 +87,32 @@ export async function POST(request: NextRequest) {
 
     console.log('Message saved successfully:', payload.message_id)
 
-    // 2. FIRE AND FORGET - Kick off background processing for received messages
+    // 2. TRIGGER BACKGROUND PROCESSING - Await to ensure it starts before webhook returns
     if (eventType === 'message.received') {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
-      fetch(`${baseUrl}/api/process-message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messageId: payload.message_id,
-          sender: formattedPhone,
-          text: payload.text
+      try {
+        // Await the fetch to ensure it starts, but with a short timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
+
+        await fetch(`${baseUrl}/api/process-message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageId: payload.message_id,
+            sender: formattedPhone,
+            text: payload.text
+          }),
+          signal: controller.signal
         })
-      }).catch((error) => {
+
+        clearTimeout(timeoutId)
+        console.log('Background processing triggered successfully')
+      } catch (error) {
         console.error('Failed to trigger background processing:', error)
         // Don't throw - we don't want to fail the webhook
-      })
+      }
     }
 
     // 3. RETURN IMMEDIATELY
