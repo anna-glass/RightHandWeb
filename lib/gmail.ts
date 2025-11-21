@@ -51,21 +51,43 @@ async function getGmailClient(userId: string) {
   return { gmail, userEmail: profile.email }
 }
 
-// Search for emails by person or subject
+// Search for emails by person, subject, or date range
 export async function searchEmails(
   userId: string,
   params: {
-    query: string
-    maxResults?: number
+    query?: string
+    start_date?: string  // YYYY-MM-DD format
+    end_date?: string    // YYYY-MM-DD format
+    max_results?: number
   }
 ) {
   try {
     const { gmail } = await getGmailClient(userId)
 
+    // Build the search query
+    let searchQuery = params.query || ''
+
+    // Add date filters if provided
+    // Gmail uses after:YYYY/MM/DD and before:YYYY/MM/DD format
+    if (params.start_date) {
+      const formattedDate = params.start_date.replace(/-/g, '/')
+      searchQuery += ` after:${formattedDate}`
+    }
+    if (params.end_date) {
+      // Add 1 day to end_date because Gmail's before: is exclusive
+      const endDate = new Date(params.end_date)
+      endDate.setDate(endDate.getDate() + 1)
+      const formattedDate = endDate.toISOString().split('T')[0].replace(/-/g, '/')
+      searchQuery += ` before:${formattedDate}`
+    }
+
+    searchQuery = searchQuery.trim()
+    console.log('Gmail search query:', searchQuery)
+
     const response = await gmail.users.messages.list({
       userId: 'me',
-      q: params.query,
-      maxResults: params.maxResults || 5,
+      q: searchQuery,
+      maxResults: params.max_results || 5,
     })
 
     const messages = response.data.messages || []

@@ -74,7 +74,9 @@ interface UpdatePendingDraftInput {
 }
 
 interface SearchEmailsInput {
-  query: string
+  query?: string
+  start_date?: string
+  end_date?: string
   max_results?: number
 }
 
@@ -135,11 +137,11 @@ export async function POST(req: NextRequest) {
   try {
     const { messageId, sender, text } = await req.json()
 
-    console.log('📨 Processing message:', { messageId, sender })
+    console.log('💌 Processing message:', { messageId, sender })
 
     // Check if this specific message is already being processed
     if (processingMessages.has(messageId)) {
-      console.log('⚠️ Message already being processed, skipping duplicate:', messageId)
+      console.log('Message already being processed, skipping duplicate:', messageId)
       return NextResponse.json({ success: true, duplicate: true }, { status: 200 })
     }
 
@@ -165,8 +167,6 @@ export async function POST(req: NextRequest) {
 
 async function processMessage(messageId: string, sender: string, text: string) {
   // 0. SHOW READ RECEIPT AND TYPING INDICATOR
-  // Wait 0.8 seconds before showing read receipt (feels more natural)
-  await delay(800)
 
   // Mark as read and start typing in parallel
   await Promise.all([
@@ -223,6 +223,7 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 3. CALL CLAUDE WITH CONVERSATION HISTORY
   const userName = profile?.first_name || 'User'
   const userCity = profile?.city || null
+  console.log('🤖 Calling Claude...')
   const response = await handleClaudeConversation(
     profile?.id || null,
     sender,
@@ -465,20 +466,28 @@ async function handleClaudeConversation(
     },
     {
       name: "search_emails",
-      description: "search for emails by person, subject, or content. use to find threads to reply to",
+      description: "search for emails by person, subject, content, or date range. use to find threads to reply to or emails from a specific time period",
       input_schema: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "search query (e.g. 'from:trisha@example.com' or 'subject:meeting')"
+            description: "search query (e.g. 'from:trisha@example.com' or 'subject:meeting'). can be empty if only using date filters"
+          },
+          start_date: {
+            type: "string",
+            description: "only return emails from this date onwards, in YYYY-MM-DD format (e.g. '2025-01-20' for emails from Jan 20 onwards)"
+          },
+          end_date: {
+            type: "string",
+            description: "only return emails up to this date, in YYYY-MM-DD format (e.g. '2025-01-21' for emails up to Jan 21)"
           },
           max_results: {
             type: "number",
             description: "max results (default 5)"
           }
         },
-        required: ["query"]
+        required: []
       }
     },
     {
@@ -1311,7 +1320,7 @@ async function handleClaudeConversation(
               result = { error: `unknown tool: ${toolUse.name}` }
             }
 
-            console.log(`✅ Tool result for ${toolUse.name}:`, JSON.stringify(result, null, 2))
+            console.log(`🌲 Tool result for ${toolUse.name}:`, JSON.stringify(result, null, 2))
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -1319,7 +1328,7 @@ async function handleClaudeConversation(
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error)
-            console.error(`❌ Tool error for ${toolUse.name}:`, errorMessage)
+            console.error(`Tool error for ${toolUse.name}:`, errorMessage)
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -1342,36 +1351,7 @@ async function handleClaudeConversation(
       )
 
       if (textBlock) {
-        let text = textBlock.text.trim()
-
-        // Debug: check if there are multiple text blocks
-        const allTextBlocks = response.content.filter(
-          (block): block is Anthropic.TextBlock => block.type === "text"
-        )
-        if (allTextBlocks.length > 1) {
-          console.warn('WARNING: Multiple text blocks detected!', allTextBlocks.length)
-          allTextBlocks.forEach((block, i) => {
-            console.log(`Block ${i}:`, block.text.substring(0, 50))
-          })
-        }
-
-        // Deduplicate: Check if entire text is duplicated (e.g. "hello hello")
-        const words = text.split(/\s+/)
-        const halfLength = Math.floor(words.length / 2)
-
-        if (words.length > 1 && words.length % 2 === 0) {
-          const firstHalf = words.slice(0, halfLength).join(' ')
-          const secondHalf = words.slice(halfLength).join(' ')
-
-          if (firstHalf === secondHalf) {
-            console.warn('⚠️ Exact duplicate detected and removed')
-            text = firstHalf
-          }
-        }
-        console.log('Claude response:', text.substring(0, 100))
-        console.log('Total response blocks:', response.content.length)
-
-        return text || "..."
+        return textBlock.text.trim() || "..."
       }
 
       return "..."
@@ -1389,22 +1369,7 @@ async function handleClaudeConversation(
         typeof block === 'object' && block !== null && 'type' in block && block.type === "text"
       )
       if (textBlock) {
-        let text = textBlock.text.trim()
-
-        // Deduplicate here too
-        const words = text.split(/\s+/)
-        const halfLength = Math.floor(words.length / 2)
-
-        if (words.length > 1 && words.length % 2 === 0) {
-          const firstHalf = words.slice(0, halfLength).join(' ')
-          const secondHalf = words.slice(halfLength).join(' ')
-
-          if (firstHalf === secondHalf) {
-            text = firstHalf
-          }
-        }
-
-        return text || "..."
+        return textBlock.text.trim() || "..."
       }
     }
   }
@@ -1496,7 +1461,7 @@ async function sendSignupLink(input: { phone_number: string }) {
 async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: number = 5) {
   const messageId = generateMessageId()
 
-  console.log('📤 sendBlooioMessage called:', {
+  console.log('💌 sendBlooioMessage called:', {
     messageId,
     phoneNumber,
     textPreview: text.substring(0, 50)
@@ -1509,7 +1474,6 @@ async function sendBlooioMessage(phoneNumber: string, text: string, maxRetries: 
     attempt++
 
     try {
-      console.log(`Attempting to send message (${attempt}/${maxRetries})`)
 
       const res = await fetch('https://backend.blooio.com/v1/api/messages', {
         method: 'POST',
@@ -1616,9 +1580,7 @@ async function markAsRead(externalId: string): Promise<void> {
       }
     })
     if (!res.ok) {
-      console.warn('Failed to mark as read:', res.status, await res.text())
-    } else {
-      console.log('Marked message as read for:', externalId)
+      console.warn('Failed to mark as read:', res.status)
     }
   } catch (error) {
     console.warn('Error marking as read:', error)
@@ -1636,9 +1598,7 @@ async function startTyping(externalId: string): Promise<void> {
       }
     })
     if (!res.ok) {
-      console.warn('Failed to start typing:', res.status, await res.text())
-    } else {
-      console.log('Started typing indicator for:', externalId)
+      console.warn('Failed to start typing:', res.status)
     }
   } catch (error) {
     console.warn('Error starting typing:', error)
@@ -1656,9 +1616,7 @@ async function stopTyping(externalId: string): Promise<void> {
       }
     })
     if (!res.ok) {
-      console.warn('Failed to stop typing:', res.status, await res.text())
-    } else {
-      console.log('Stopped typing indicator for:', externalId)
+      console.warn('Failed to stop typing:', res.status)
     }
   } catch (error) {
     console.warn('Error stopping typing:', error)

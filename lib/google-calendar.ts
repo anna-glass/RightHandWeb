@@ -73,24 +73,6 @@ export async function getCalendarEvents(
     const timeMin = `${startDate}T00:00:00`
     const timeMax = `${effectiveEndDate}T23:59:59`
 
-    console.log('Query range:', { timeMin, timeMax, timezone })
-
-    // Also try to get a count of ALL events to verify auth works
-    try {
-      const testResponse = await calendar.events.list({
-        calendarId: 'primary',
-        maxResults: 5,
-        singleEvents: true,
-        orderBy: 'startTime',
-      })
-      console.log('Test query (no date filter):', {
-        totalEventsInCalendar: testResponse.data.items?.length || 0
-      })
-    } catch (testError: unknown) {
-      const errorMessage = testError instanceof Error ? testError.message : String(testError)
-      console.error('Test query failed:', errorMessage)
-    }
-
     const response = await calendar.events.list({
       calendarId: 'primary',
       timeMin,
@@ -101,16 +83,7 @@ export async function getCalendarEvents(
       maxResults: 50,
     })
 
-    console.log('Calendar API response:', {
-      status: response.status,
-      itemCount: response.data.items?.length || 0
-    })
-
     const events = response.data.items || []
-
-    if (events.length === 0) {
-      console.warn('No events found in calendar for range:', { timeMin, timeMax })
-    }
 
     return {
       success: true,

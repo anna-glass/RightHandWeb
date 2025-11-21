@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
 
     // Only process message.sent and message.received events
     if (eventType !== 'message.sent' && eventType !== 'message.received') {
-      console.log(`Ignoring event: ${eventType}`)
       return NextResponse.json(
         { success: true, message: `Event ${eventType} ignored` },
         { status: 200 }
@@ -77,7 +76,6 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       // If it's a duplicate message, just log and continue (Blooio might retry webhooks)
       if (insertError.code === '23505') {
-        console.log('Message already exists, skipping:', payload.message_id)
         return NextResponse.json(
           { success: true, message_id: payload.message_id, duplicate: true },
           { status: 200 }
@@ -90,8 +88,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-
-    console.log('Message saved successfully:', payload.message_id)
 
     // 2. QUEUE BACKGROUND PROCESSING via Qstash (reliable in serverless)
     if (eventType === 'message.received') {
@@ -106,7 +102,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Publish to Qstash - guaranteed delivery even if webhook terminates
-        const response = await qstash.publishJSON({
+        await qstash.publishJSON({
           url: processUrl,
           body: {
             messageId: payload.message_id,
@@ -114,9 +110,6 @@ export async function POST(request: NextRequest) {
             text: payload.text
           }
         })
-
-        const messageId = Array.isArray(response) ? response[0].messageId : response.messageId
-        console.log('✅ Message queued successfully in Qstash:', messageId)
       } catch (error) {
         console.error('❌ Failed to queue message in Qstash:', error)
         // Don't throw - we don't want to fail the webhook

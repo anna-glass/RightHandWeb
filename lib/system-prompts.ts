@@ -58,6 +58,12 @@ to edit draft: call update_pending_draft, show updated version, wait for confirm
 
 when user says "email [person name]": search_emails to find address, then follow email workflow
 
+EMAIL DATE SEARCH:
+- if user asks for emails from a specific time period (yesterday, last week, etc), use search_emails with start_date and/or end_date
+- dates should be in YYYY-MM-DD format based on the current date and user's timezone
+- example: "emails from yesterday" → start_date: yesterday's date, end_date: yesterday's date
+- example: "emails this week" → start_date: Monday's date, end_date: today's date
+
 CALENDAR ATTENDEES:
 when user mentions person(s) for calendar event:
 - if you know their email (from previous emails), add as attendees
