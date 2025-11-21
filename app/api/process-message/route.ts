@@ -239,26 +239,20 @@ async function processMessage(messageId: string, sender: string, text: string) {
   // 4. STOP TYPING INDICATOR
   await stopTyping(sender)
 
-  // 5. SEND RESPONSE VIA BLOOIO (split by line breaks, with retry and graceful failure)
+  // 5. SEND RESPONSE VIA BLOOIO (split by double newlines into separate messages)
   try {
-    // Split response by newlines and filter out empty lines
-    const lines = response
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
+    // Split by double newlines (empty lines) to create separate message bubbles
+    const messages = response
+      .split(/\n\n+/)
+      .map(msg => msg.trim())
+      .filter(msg => msg.length > 0)
 
-    console.log(`Sending ${lines.length} message(s) to ${sender}`)
-
-    // Send each line as a separate message (sequentially)
-    for (const line of lines) {
-      await sendBlooioMessage(sender, line)
+    for (const msg of messages) {
+      await sendBlooioMessage(sender, msg)
     }
-
-    console.log('Message processing complete:', messageId)
   } catch (blooioError: unknown) {
     const errorMessage = blooioError instanceof Error ? blooioError.message : String(blooioError)
     console.error('Failed to send via Blooio after retries:', errorMessage)
-    // Don't throw - we processed the message, just couldn't deliver
   }
 }
 
