@@ -765,7 +765,20 @@ async function handleClaudeConversation(
               )
             } else if (toolUse.name === "create_reminder") {
               const input = toolUse.input as CreateReminderInput
-              const reminderTime = new Date(input.time)
+
+              // Parse the time in the user's timezone
+              // If the input doesn't have timezone info, treat it as the user's local time
+              let reminderTime: Date
+              if (input.time.includes('Z') || input.time.match(/[+-]\d{2}:\d{2}$/)) {
+                // Has timezone info, parse as-is
+                reminderTime = new Date(input.time)
+              } else {
+                // No timezone info - interpret as user's local time
+                // Convert to ISO string with timezone offset
+                const timeWithTZ = input.time + getTimezoneOffset(userTimezone)
+                reminderTime = new Date(timeWithTZ)
+              }
+
               const now = new Date()
 
               // Calculate delay in seconds
@@ -1517,4 +1530,17 @@ function generateMessageId(): string {
     id += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return id
+}
+
+// Helper to get timezone offset string for a given timezone
+function getTimezoneOffset(timezone: string): string {
+  const now = new Date()
+  const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+  const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }))
+  const offsetMs = tzDate.getTime() - utcDate.getTime()
+  const offsetMinutes = offsetMs / 60000
+  const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60)
+  const offsetMins = Math.abs(offsetMinutes) % 60
+  const sign = offsetMinutes >= 0 ? '+' : '-'
+  return `${sign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`
 }
