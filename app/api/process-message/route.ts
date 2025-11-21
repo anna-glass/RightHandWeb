@@ -1032,40 +1032,14 @@ async function handleClaudeConversation(
                   console.log('Creating Qstash schedule with destination:', destinationUrl)
                   console.log('Base URL from env:', process.env.NEXT_PUBLIC_BASE_URL)
 
-                  const requestBody = {
-                    destination: destinationUrl,
-                    cron: cronExpression,
-                    body: JSON.stringify({
-                      digestId: 'TEMP_ID' // Will be updated after insert
-                    })
-                  }
-                  console.log('Qstash request body:', JSON.stringify(requestBody, null, 2))
-
-                  const scheduleResponse = await fetch('https://qstash.upstash.io/v2/schedules', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestBody)
-                  })
-
-                  if (!scheduleResponse.ok) {
-                    const errorText = await scheduleResponse.text()
-                    throw new Error(`Failed to create Qstash schedule: ${errorText}`)
-                  }
-
-                  const scheduleData = await scheduleResponse.json()
-                  const scheduleId = scheduleData.scheduleId
-
-                  // Create digest in database
+                  // First create digest in database to get the ID
                   const { data: digestData, error } = await supabase
                     .from('digests')
                     .insert({
                       user_id: userId!,
                       phone_number: phoneNumber,
                       prompt: input.prompt,
-                      qstash_schedule_id: scheduleId,
+                      qstash_schedule_id: null, // Will be updated after schedule creation
                       timezone: userTimezone,
                       send_hour: send_hour,
                       send_minute: send_minute,
@@ -1077,31 +1051,38 @@ async function handleClaudeConversation(
                     .single()
 
                   if (error) {
-                    // Rollback: Delete the Qstash schedule
-                    await fetch(`https://qstash.upstash.io/v2/schedules/${scheduleId}`, {
-                      method: 'DELETE',
-                      headers: {
-                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
-                      },
-                    })
                     throw new Error(`Failed to create digest: ${error.message}`)
                   }
 
-                  // Update Qstash schedule with real digest ID
-                  await fetch(`https://qstash.upstash.io/v2/schedules/${scheduleId}`, {
-                    method: 'PATCH',
-                    headers: {
-                      'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
-                      'Content-Type': 'application/json',
-                    },
+                  console.log('Created digest in DB with ID:', digestData.id)
+                  console.log('Creating Qstash schedule with cron:', cronExpression)
+
+                  // Create schedule using QStash SDK with correct digest ID
+                  const scheduleResult = await qstash.schedules.create({
+                    destination: destinationUrl,
+                    cron: cronExpression,
                     body: JSON.stringify({
-                      body: JSON.stringify({
-                        digestId: digestData.id,
-                        userId: userId,
-                        timezone: userTimezone
-                      })
+                      digestId: digestData.id,
+                      userId: userId,
+                      timezone: userTimezone
                     })
                   })
+
+                  const scheduleId = scheduleResult.scheduleId
+                  console.log('Created Qstash schedule with ID:', scheduleId)
+
+                  // Update digest with the schedule ID
+                  const { error: updateError } = await supabase
+                    .from('digests')
+                    .update({ qstash_schedule_id: scheduleId })
+                    .eq('id', digestData.id)
+
+                  if (updateError) {
+                    // Rollback: Delete the Qstash schedule and DB record
+                    await qstash.schedules.delete(scheduleId)
+                    await supabase.from('digests').delete().eq('id', digestData.id)
+                    throw new Error(`Failed to update digest with schedule ID: ${updateError.message}`)
+                  }
 
                   const frequencyText = input.frequency === 'weekly'
                     ? `every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][input.day_of_week!]}`
@@ -1182,19 +1163,11 @@ async function handleClaudeConversation(
                     error: "Digest not found or you don't have permission to delete it"
                   }
                 } else {
-                  // Delete the Qstash schedule
-                  const deleteScheduleRes = await fetch(
-                    `https://qstash.upstash.io/v2/schedules/${digest.qstash_schedule_id}`,
-                    {
-                      method: 'DELETE',
-                      headers: {
-                        'Authorization': `Bearer ${process.env.QSTASH_TOKEN}`,
-                      },
-                    }
-                  )
-
-                  if (!deleteScheduleRes.ok) {
-                    console.error('Failed to delete Qstash schedule:', await deleteScheduleRes.text())
+                  // Delete the Qstash schedule using SDK
+                  try {
+                    await qstash.schedules.delete(digest.qstash_schedule_id)
+                  } catch (deleteErr) {
+                    console.error('Failed to delete Qstash schedule:', deleteErr)
                     // Continue anyway - better to delete from our DB
                   }
 
