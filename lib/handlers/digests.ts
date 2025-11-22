@@ -132,13 +132,14 @@ export async function handleDeleteDigest(
   userId: string,
   input: DeleteDigestInput
 ): Promise<ToolResult> {
-  let { data: digest, error: fetchError } = await supabaseAdmin
+  const { data, error: fetchError } = await supabaseAdmin
     .from('digests')
     .select('id, qstash_schedule_id')
     .eq('id', input.digest_id)
     .eq('user_id', userId)
     .maybeSingle()
 
+  let digest = data
   if (!digest) {
     const { data: byScheduleId } = await supabaseAdmin
       .from('digests')
