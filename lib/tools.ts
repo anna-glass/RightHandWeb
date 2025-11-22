@@ -41,22 +41,12 @@ export interface DeleteCalendarEventInput {
   event_id: string
 }
 
-export interface CreateEmailDraftInput {
+export interface SendEmailInput {
   to: string
   subject: string
   body: string
   cc?: string
   bcc?: string
-}
-
-export interface SendPendingDraftInput {
-  recipient?: string
-}
-
-export interface UpdatePendingDraftInput {
-  subject?: string
-  body?: string
-  recipient?: string
 }
 
 export interface CreateReminderInput {
@@ -148,8 +138,8 @@ export const AUTHENTICATED_TOOLS: Anthropic.Tool[] = [
     }
   },
   {
-    name: "create_email_draft",
-    description: "REQUIRED FIRST STEP for sending emails. creates an email draft in Gmail. you MUST call this tool before showing any draft to the user. do not skip this step. parameters: to (email), subject, body, optional cc/bcc",
+    name: "send_email",
+    description: "send an email. ONLY use after: 1) you composed and showed a draft to the user, and 2) they confirmed (yes, send it, looks good, etc). pass the exact email content you showed them",
     input_schema: {
       type: "object",
       properties: {
@@ -160,28 +150,6 @@ export const AUTHENTICATED_TOOLS: Anthropic.Tool[] = [
         bcc: { type: "string", description: "bcc email addresses (optional)" }
       },
       required: ["to", "subject", "body"]
-    }
-  },
-  {
-    name: "send_pending_draft",
-    description: "send the most recent pending email draft. only use AFTER create_email_draft and user confirms. if recipient specified, finds draft by recipient, otherwise sends most recent draft",
-    input_schema: {
-      type: "object",
-      properties: {
-        recipient: { type: "string", description: "email address to match (optional - if not provided, sends most recent draft)" }
-      }
-    }
-  },
-  {
-    name: "update_pending_draft",
-    description: "update the most recent pending email draft. use when user wants to edit the draft",
-    input_schema: {
-      type: "object",
-      properties: {
-        subject: { type: "string", description: "new subject (optional)" },
-        body: { type: "string", description: "new body (optional)" },
-        recipient: { type: "string", description: "email address to match specific draft (optional)" }
-      }
     }
   },
   {

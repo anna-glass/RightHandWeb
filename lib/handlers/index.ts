@@ -13,11 +13,7 @@ import {
   handleUpdateCalendarEvent,
   handleDeleteCalendarEvent
 } from './calendar'
-import {
-  handleCreateEmailDraft,
-  handleSendPendingDraft,
-  handleUpdatePendingDraft
-} from './email'
+import { handleSendEmail } from './email'
 import {
   handleCreateReminder,
   handleListReminders,
@@ -36,9 +32,7 @@ import {
   CreateCalendarEventInput,
   UpdateCalendarEventInput,
   DeleteCalendarEventInput,
-  CreateEmailDraftInput,
-  SendPendingDraftInput,
-  UpdatePendingDraftInput,
+  SendEmailInput,
   CreateReminderInput,
   CancelReminderInput,
   CreateDigestInput,
@@ -80,14 +74,8 @@ export async function executeToolCall(
     case 'delete_calendar_event':
       return handleDeleteCalendarEvent(userId!, input as DeleteCalendarEventInput)
 
-    case 'create_email_draft':
-      return handleCreateEmailDraft(userId!, input as CreateEmailDraftInput)
-
-    case 'send_pending_draft':
-      return handleSendPendingDraft(userId!, input as SendPendingDraftInput)
-
-    case 'update_pending_draft':
-      return handleUpdatePendingDraft(userId!, input as UpdatePendingDraftInput)
+    case 'send_email':
+      return handleSendEmail(userId!, input as SendEmailInput)
 
     case 'create_reminder':
       return handleCreateReminder(userId!, phoneNumber, userTimezone, input as CreateReminderInput)
