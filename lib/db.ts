@@ -161,3 +161,51 @@ export async function markDigestSent(digestId: string) {
     .update({ last_sent_at: new Date().toISOString() })
     .eq('id', digestId)
 }
+
+// ============================================================================
+// admin queries (client-side)
+// ============================================================================
+
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/**
+ * getAllProfiles
+ * fetches all profiles ordered by created_at desc.
+ */
+export async function getAllProfiles(client: SupabaseClient) {
+  const { data, error } = await client
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return { data, error }
+}
+
+/**
+ * getPhoneByProfileId
+ * fetches phone number for a profile.
+ */
+export async function getPhoneByProfileId(client: SupabaseClient, profileId: string) {
+  const { data } = await client
+    .from('profiles')
+    .select('phone_number')
+    .eq('id', profileId)
+    .single()
+  return data?.phone_number || null
+}
+
+/**
+ * getMessagesByUser
+ * fetches all messages for a user by profile id and phone number.
+ */
+export async function getMessagesByUser(
+  client: SupabaseClient,
+  profileId: string,
+  phoneNumber: string
+) {
+  const { data } = await client
+    .from('imessages')
+    .select('*')
+    .or(`profile_id.eq.${profileId},sender.eq.${phoneNumber}`)
+    .order('created_at', { ascending: true })
+  return data || []
+}

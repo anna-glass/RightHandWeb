@@ -128,6 +128,11 @@ export async function POST(request: Request) { ... }
 - Use lowercase throughout
 - Only add comments where logic isn't self-evident
 
+### Linting
+
+- NEVER use `eslint-disable` comments - always fix the underlying lint issue
+- Fix type errors properly, don't suppress them
+
 ## Important Files
 
 - `lib/system-prompts.ts` - AI personality and instructions
