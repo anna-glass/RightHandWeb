@@ -8,5 +8,4 @@ export const styles = {
   actionHover: "hover:opacity-80 transition-opacity",
   divider: "border-t border-white/10 pt-2.5",
   iconButton: "w-10 h-10 rounded-full bg-[#292927] flex items-center justify-center hover:bg-[#333331] transition-colors",
-  loadingScreen: "flex min-h-screen items-center justify-center bg-black",
 }

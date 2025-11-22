@@ -8,8 +8,9 @@ import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { Search, Plus } from "lucide-react"
-import { SyncLoader } from "react-spinners"
 import { images } from "@/lib/images"
+import { LoadingScreen } from "@/components/loading-screen"
+import { ADMIN_EMAIL_DOMAIN } from "@/lib/constants"
 
 interface UserProfile {
   id: string
@@ -101,7 +102,7 @@ export default function AdminPage() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user || !user.email?.endsWith('@getrighthand.com')) {
+      if (!user || !user.email?.endsWith(ADMIN_EMAIL_DOMAIN)) {
         router.push('/signin')
         return
       }
@@ -279,11 +280,7 @@ export default function AdminPage() {
   }, [users, searchQuery])
 
   if (loading || !imageLoaded || !contentReady) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-black">
-        <SyncLoader color="#ffffff" size={10} />
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   return (

@@ -1,4 +1,28 @@
 export const strings = {
+  verify: {
+    slides: [
+      { title: "Welcome to Right Hand" },
+      { title: "Get Connected" },
+    ],
+    welcome: {
+      line1: "For decades, executives have had assistants handling their life admin.",
+      line2: "The rest of us have been winging it... Until now.",
+    },
+    connect: {
+      line1: "Right Hand works best with access to your email and calendar.",
+      line2: "You can adjust these permissions and settings at any time.",
+    },
+    nav: {
+      next: "Next",
+      previous: "Previous",
+    },
+    loading: "Loading...",
+    errors: {
+      invalidLink: "Verification link is invalid or expired. Please try again.",
+      googleFailed: "Failed to connect with Google. Please try again.",
+      setupFailed: "Failed to complete setup. Please try again.",
+    },
+  },
   home: {
     toast: {
       saveContact: "Save Right Hand's contact to get started!",

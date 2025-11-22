@@ -3,18 +3,21 @@
 import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
-import { SyncLoader } from "react-spinners"
 import { images } from "@/lib/images"
-import { Toast } from "./components/Toast"
+import { LoadingScreen } from "@/components/loading-screen"
+import { SaveContactToast } from "./components/SaveContactToast"
 import { ContactCard } from "./components/ContactCard"
 import { ProfileCard } from "./components/ProfileCard"
 import { saveContact } from "./utils"
-import { styles } from "./styles"
 import type { Profile } from "./types"
 
+/**
+ * HomePage
+ * main dashboard for authenticated users with profile display and contact save flow.
+ */
 export default function HomePage() {
   return (
-    <Suspense fallback={<div className={styles.loadingScreen}><SyncLoader color="#ffffff" size={10} /></div>}>
+    <Suspense fallback={<LoadingScreen />}>
       <Content />
     </Suspense>
   )
@@ -30,6 +33,7 @@ function Content() {
   const [showToast, setShowToast] = useState(false)
   const [isToastDismissing, setIsToastDismissing] = useState(false)
 
+  // preload background image
   useEffect(() => {
     const img = new window.Image()
     img.src = images.backgrounds.home
@@ -37,6 +41,7 @@ function Content() {
     img.onerror = () => setImageLoaded(true)
   }, [])
 
+  // load user profile and trigger onboarding toast sequence
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -56,6 +61,7 @@ function Content() {
 
         setProfile(profileData)
 
+        // show save contact card after onboarding
         if (searchParams.get('onboarding') === 'complete') {
           setShowContactCard(true)
           setTimeout(() => {
@@ -89,12 +95,12 @@ function Content() {
   }
 
   if (loading || !imageLoaded) {
-    return <div className={styles.loadingScreen}><SyncLoader color="#ffffff" size={10} /></div>
+    return <LoadingScreen />
   }
 
   return (
     <>
-      <Toast show={showToast} isDismissing={isToastDismissing} />
+      <SaveContactToast show={showToast} isDismissing={isToastDismissing} />
       {showContactCard && <ContactCard onSaveContact={handleSaveContact} />}
       <div className="relative min-h-screen p-6 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${images.backgrounds.home})` }}>
         {!showContactCard && <div className="absolute inset-0 bg-black/50 z-0"></div>}

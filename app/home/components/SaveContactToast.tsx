@@ -2,7 +2,7 @@
 
 import { strings } from "@/lib/strings"
 
-export function Toast({ show, isDismissing }: { show: boolean; isDismissing: boolean }) {
+export function SaveContactToast({ show, isDismissing }: { show: boolean; isDismissing: boolean }) {
   if (!show) return null
 
   return (

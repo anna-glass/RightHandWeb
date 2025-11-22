@@ -3,7 +3,8 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
-import { SyncLoader } from "react-spinners"
+import { ADMIN_EMAIL_DOMAIN } from "@/lib/constants"
+import { LoadingScreen } from "@/components/loading-screen"
 
 export default function Home() {
   const router = useRouter()
@@ -15,7 +16,7 @@ export default function Home() {
 
       if (!user) {
         router.replace('/signin')
-      } else if (user.email?.endsWith('@getrighthand.com')) {
+      } else if (user.email?.endsWith(ADMIN_EMAIL_DOMAIN)) {
         router.replace('/admin')
       } else {
         router.replace('/home')
@@ -24,9 +25,5 @@ export default function Home() {
     redirect()
   }, [router])
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-black">
-      <SyncLoader color="#ffffff" size={10} />
-    </div>
-  )
+  return <LoadingScreen />
 }
