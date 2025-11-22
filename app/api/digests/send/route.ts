@@ -14,17 +14,6 @@ interface CalendarEventsInput {
   end_date?: string
 }
 
-interface SearchEmailsInput {
-  query?: string
-  start_date?: string
-  end_date?: string
-  max_results?: number
-}
-
-interface GetRecentEmailsInput {
-  max_results?: number
-}
-
 interface WebSearchInput {
   query: string
 }
@@ -206,30 +195,6 @@ async function generateDigestContent(
           }
         },
         {
-          name: "search_emails",
-          description: "search for emails by person, subject, content, or date range",
-          input_schema: {
-            type: "object",
-            properties: {
-              query: { type: "string", description: "search query (e.g. 'from:someone@example.com')" },
-              start_date: { type: "string", description: "emails from this date onwards (YYYY-MM-DD)" },
-              end_date: { type: "string", description: "emails up to this date (YYYY-MM-DD)" },
-              max_results: { type: "number", description: "max results (default 5)" }
-            },
-            required: []
-          }
-        },
-        {
-          name: "get_recent_emails",
-          description: "get recent emails from inbox",
-          input_schema: {
-            type: "object",
-            properties: {
-              max_results: { type: "number", description: "max emails to fetch (default 10)" }
-            }
-          }
-        },
-        {
           name: "web_search",
           description: "search the internet for current info (weather, news, sports, facts, etc.)",
           input_schema: {
@@ -262,16 +227,6 @@ async function generateDigestContent(
             const input = toolUse.input as CalendarEventsInput
             result = await getCalendarEvents(userId, input.start_date, input.end_date)
             console.log('📅 Calendar result:', JSON.stringify(result))
-          } else if (toolUse.name === "search_emails") {
-            const { searchEmails } = await import('@/lib/gmail')
-            const input = toolUse.input as SearchEmailsInput
-            result = await searchEmails(userId, input)
-            console.log('📧 Search emails result:', JSON.stringify(result))
-          } else if (toolUse.name === "get_recent_emails") {
-            const { getRecentEmails } = await import('@/lib/gmail')
-            const input = toolUse.input as GetRecentEmailsInput
-            result = await getRecentEmails(userId, input?.max_results || 10)
-            console.log('📧 Recent emails result:', JSON.stringify(result))
           } else if (toolUse.name === "web_search") {
             const input = toolUse.input as WebSearchInput
             try {

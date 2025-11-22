@@ -9,8 +9,6 @@ import {
   deleteCalendarEvent
 } from '@/lib/google-calendar'
 import {
-  getRecentEmails,
-  searchEmails,
   createDraft,
   updateDraft,
   sendDraft
@@ -71,17 +69,6 @@ interface UpdatePendingDraftInput {
   subject?: string
   body?: string
   recipient?: string
-}
-
-interface SearchEmailsInput {
-  query?: string
-  start_date?: string
-  end_date?: string
-  max_results?: number
-}
-
-interface GetRecentEmailsInput {
-  max_results?: number
 }
 
 interface CreateReminderInput {
@@ -452,45 +439,6 @@ async function handleClaudeConversation(
       }
     },
     {
-      name: "search_emails",
-      description: "search for emails by person, subject, content, or date range. use to find threads to reply to or emails from a specific time period",
-      input_schema: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "search query (e.g. 'from:trisha@example.com' or 'subject:meeting'). can be empty if only using date filters"
-          },
-          start_date: {
-            type: "string",
-            description: "only return emails from this date onwards, in YYYY-MM-DD format (e.g. '2025-01-20' for emails from Jan 20 onwards)"
-          },
-          end_date: {
-            type: "string",
-            description: "only return emails up to this date, in YYYY-MM-DD format (e.g. '2025-01-21' for emails up to Jan 21)"
-          },
-          max_results: {
-            type: "number",
-            description: "max results (default 5)"
-          }
-        },
-        required: []
-      }
-    },
-    {
-      name: "get_recent_emails",
-      description: "get recent emails from inbox",
-      input_schema: {
-        type: "object",
-        properties: {
-          max_results: {
-            type: "number",
-            description: "max number of emails to fetch (default 10)"
-          }
-        }
-      }
-    },
-    {
       name: "create_reminder",
       description: "create a ONE-TIME reminder to notify the user at a specific time. use this for single reminders like 'remind me tomorrow at 5pm'. for RECURRING/REPEATING reminders (daily, weekly, etc), use create_digest instead.",
       input_schema: {
@@ -801,14 +749,6 @@ async function handleClaudeConversation(
                   error: 'no pending draft found'
                 }
               }
-            } else if (toolUse.name === "search_emails") {
-              result = await searchEmails(userId!, toolUse.input as SearchEmailsInput)
-            } else if (toolUse.name === "get_recent_emails") {
-              const input = toolUse.input as GetRecentEmailsInput
-              result = await getRecentEmails(
-                userId!,
-                input?.max_results || 10
-              )
             } else if (toolUse.name === "create_reminder") {
               const input = toolUse.input as CreateReminderInput
 
