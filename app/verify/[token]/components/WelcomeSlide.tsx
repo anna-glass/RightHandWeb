@@ -1,3 +1,12 @@
+/**
+ * app/verify/[token]/components/WelcomeSlide.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
@@ -9,6 +18,10 @@ interface WelcomeSlideProps {
   onNext: () => void
 }
 
+/**
+ * WelcomeSlide
+ * first onboarding slide with welcome message.
+ */
 export function WelcomeSlide({ onNext }: WelcomeSlideProps) {
   return (
     <div className="h-full flex flex-col">

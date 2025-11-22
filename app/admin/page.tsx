@@ -1,3 +1,12 @@
+/**
+ * app/admin/page.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 "use client"
 
 import * as React from "react"
@@ -33,6 +42,10 @@ interface Message {
   timestamp?: string
 }
 
+/**
+ * AdminPage
+ * admin dashboard with user search and conversation history.
+ */
 export default function AdminPage() {
   const router = useRouter()
   const supabase = createClient()

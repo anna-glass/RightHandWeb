@@ -1,3 +1,12 @@
+/**
+ * app/verify/[token]/components/ConnectSlide.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { Button } from "@/components/ui/button"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
@@ -12,6 +21,10 @@ interface ConnectSlideProps {
   loading: boolean
 }
 
+/**
+ * ConnectSlide
+ * google oauth connection slide for onboarding.
+ */
 export function ConnectSlide({ onPrevious, onConnect, loading }: ConnectSlideProps) {
   return (
     <div className="h-full flex flex-col">

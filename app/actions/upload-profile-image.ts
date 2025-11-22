@@ -1,8 +1,20 @@
+/**
+ * app/actions/upload-profile-image.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
 
-/** Uploads a profile image to Supabase Storage. */
+/**
+ * uploadProfileImage
+ * uploads a profile image to supabase storage.
+ */
 export async function uploadProfileImage(formData: FormData) {
   try {
     const supabase = await createClient()

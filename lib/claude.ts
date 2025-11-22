@@ -1,3 +1,12 @@
+/**
+ * lib/claude.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import Anthropic from '@anthropic-ai/sdk'
 import { executeToolCall, ToolContext } from '@/lib/handlers'
 
@@ -21,6 +30,10 @@ export function getToolCalls(content: Anthropic.ContentBlock[]): Anthropic.ToolU
   return content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
 }
 
+/**
+ * getClaudeResponse
+ * sends messages to claude and handles tool use loop.
+ */
 export async function getClaudeResponse(
   systemPrompt: string,
   messages: Anthropic.MessageParam[],

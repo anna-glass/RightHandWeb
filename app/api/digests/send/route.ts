@@ -1,3 +1,12 @@
+/**
+ * app/api/digests/send/route.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getClaudeResponse } from '@/lib/claude'
 import { getAuthenticatedSystemPrompt } from '@/lib/system-prompts'

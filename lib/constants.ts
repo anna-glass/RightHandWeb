@@ -1,3 +1,12 @@
+/**
+ * lib/constants.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 export const CONTACT_PHONE = "858-815-0020"
 export const CONTACT_NAME = "Right Hand"
 export const CONTACT_EMAIL = "contact@getrighthand.com"

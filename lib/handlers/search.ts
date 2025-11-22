@@ -1,3 +1,12 @@
+/**
+ * lib/handlers/search.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { WebSearchInput, ToolResult } from '@/lib/tools'
 
 export async function handleWebSearch(input: WebSearchInput): Promise<ToolResult> {

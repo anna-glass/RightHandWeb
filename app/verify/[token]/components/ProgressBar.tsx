@@ -1,9 +1,22 @@
+/**
+ * app/verify/[token]/components/ProgressBar.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 interface ProgressBarProps {
   currentSlide: number
   totalSlides: number
   onSlideClick: (index: number) => void
 }
 
+/**
+ * ProgressBar
+ * animated slide progress indicator with click navigation.
+ */
 export function ProgressBar({ currentSlide, totalSlides, onSlideClick }: ProgressBarProps) {
   return (
     <div className="relative h-6 rounded-full p-1 cursor-pointer" style={{ backgroundColor: '#404040' }}>

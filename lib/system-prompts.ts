@@ -1,3 +1,12 @@
+/**
+ * lib/system-prompts.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 export function getAuthenticatedSystemPrompt(
   userTimezone: string,
   userName: string,

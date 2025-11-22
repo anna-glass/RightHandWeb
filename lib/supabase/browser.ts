@@ -1,3 +1,12 @@
+/**
+ * lib/supabase/browser.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from './types'
 

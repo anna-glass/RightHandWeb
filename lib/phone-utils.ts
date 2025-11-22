@@ -1,9 +1,15 @@
 /**
- * Format a phone number to E.164 format (e.g., +16509248530)
- * This is the format Blooio expects for phone numbers.
+ * lib/phone-utils.ts
  *
- * @param phoneNumber - The phone number to format
- * @returns The formatted phone number in E.164 format
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
+/**
+ * formatPhoneNumberE164
+ * converts phone number to E.164 format for blooio.
  */
 export function formatPhoneNumberE164(phoneNumber: string): string {
   if (!phoneNumber) {

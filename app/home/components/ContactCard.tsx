@@ -1,3 +1,12 @@
+/**
+ * app/home/components/ContactCard.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 "use client"
 
 import Image from "next/image"
@@ -7,6 +16,10 @@ import { strings } from "@/lib/strings"
 import { images } from "@/lib/images"
 import { styles } from "../styles"
 
+/**
+ * ContactCard
+ * ios-style contact card for saving right hand to contacts.
+ */
 export function ContactCard({ onSaveContact }: { onSaveContact: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-start justify-center pt-12 p-6 z-50">

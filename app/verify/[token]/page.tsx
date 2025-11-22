@@ -1,3 +1,12 @@
+/**
+ * app/verify/[token]/page.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 "use client"
 
 import * as React from "react"

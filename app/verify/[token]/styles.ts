@@ -1,3 +1,12 @@
+/**
+ * app/verify/[token]/styles.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 export const animations = `
   @keyframes bounce-scale {
     0% { transform: scale(1); }

@@ -1,3 +1,12 @@
+/**
+ * lib/handlers/index.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import {
   handleGetCalendarEvents,
   handleCreateCalendarEvent,
@@ -44,6 +53,10 @@ export interface ToolContext {
   userTimezone: string
 }
 
+/**
+ * executeToolCall
+ * dispatches tool calls to their respective handlers.
+ */
 export async function executeToolCall(
   toolName: string,
   input: unknown,

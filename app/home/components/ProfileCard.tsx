@@ -1,3 +1,12 @@
+/**
+ * app/home/components/ProfileCard.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 "use client"
 
 import Image from "next/image"
@@ -6,6 +15,10 @@ import { strings } from "@/lib/strings"
 import { styles } from "../styles"
 import type { Profile } from "../types"
 
+/**
+ * ProfileCard
+ * displays user profile info with logout and settings actions.
+ */
 export function ProfileCard({ profile, onLogout }: { profile: Profile | null; onLogout: () => void }) {
   return (
     <div className={`${styles.card} space-y-5 h-[600px] overflow-auto w-full`}>

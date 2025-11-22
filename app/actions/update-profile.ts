@@ -1,3 +1,12 @@
+/**
+ * app/actions/update-profile.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
@@ -10,7 +19,10 @@ interface UpdateProfileData {
   avatar_url?: string
 }
 
-/** Updates the current user's profile. */
+/**
+ * updateProfile
+ * updates the current user's profile.
+ */
 export async function updateProfile(data: UpdateProfileData) {
   try {
     const supabase = await createClient()

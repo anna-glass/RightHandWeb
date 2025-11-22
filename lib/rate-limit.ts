@@ -1,3 +1,12 @@
+/**
+ * lib/rate-limit.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { countMessagesSince } from '@/lib/db'
 
 const HOURLY_LIMIT = 50

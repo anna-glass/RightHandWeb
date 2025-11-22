@@ -1,3 +1,12 @@
+/**
+ * lib/gmail.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { google } from 'googleapis'
 import { createClient } from '@supabase/supabase-js'
 

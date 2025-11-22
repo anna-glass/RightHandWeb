@@ -1,3 +1,12 @@
+/**
+ * app/api/webhooks/blooio/route.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { Client as QstashClient } from '@upstash/qstash'
 import { insertMessage } from '@/lib/db'

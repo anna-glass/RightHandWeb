@@ -1,3 +1,12 @@
+/**
+ * lib/iMessage.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 const BLOOIO_API = 'https://backend.blooio.com/v1/api'
 
 function getHeaders(): Record<string, string> {
@@ -34,6 +43,10 @@ export async function stopTyping(externalId: string): Promise<void> {
   } catch {}
 }
 
+/**
+ * sendiMessage
+ * sends an imessage via blooio with retry logic.
+ */
 export async function sendiMessage(
   to: string,
   text: string,

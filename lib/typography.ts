@@ -1,6 +1,10 @@
 /**
- * Typography configuration for Right Hand dashboard
- * Uses CSS variables from globals.css for colors and fonts
+ * lib/typography.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
  */
 
 export const typography = {

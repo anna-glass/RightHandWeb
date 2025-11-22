@@ -1,3 +1,12 @@
+/**
+ * lib/handlers/signup.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendiMessage } from '@/lib/iMessage'
 import { formatPhoneNumberE164 } from '@/lib/phone-utils'

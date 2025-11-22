@@ -1,7 +1,20 @@
+/**
+ * app/home/components/SaveContactToast.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 "use client"
 
 import { strings } from "@/lib/strings"
 
+/**
+ * SaveContactToast
+ * animated toast notification prompting users to save the contact.
+ */
 export function SaveContactToast({ show, isDismissing }: { show: boolean; isDismissing: boolean }) {
   if (!show) return null
 

@@ -1,3 +1,12 @@
+/**
+ * app/home/styles.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 export const styles = {
   card: "bg-[#222221] rounded-[32px] p-6",
   bubble: "bg-[#292927] rounded-2xl p-3",

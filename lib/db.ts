@@ -1,8 +1,13 @@
-import { supabaseAdmin } from '@/lib/supabase/admin'
+/**
+ * lib/db.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
 
-// ============================================================================
-// profiles
-// ============================================================================
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 /** Get profile by phone number. */
 export async function getProfileByPhone(phone: string) {

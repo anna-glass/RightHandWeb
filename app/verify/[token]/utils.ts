@@ -1,3 +1,12 @@
+/**
+ * app/verify/[token]/utils.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { SupabaseClient, Session } from "@supabase/supabase-js"
 import { strings } from "@/lib/strings"
 

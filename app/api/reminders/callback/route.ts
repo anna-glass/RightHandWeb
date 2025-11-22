@@ -1,3 +1,12 @@
+/**
+ * app/api/reminders/callback/route.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { sendiMessage } from '@/lib/iMessage'
 import { generateMessageId } from '@/lib/helpers'

@@ -1,3 +1,12 @@
+/**
+ * app/home/utils.ts
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import { CONTACT_PHONE, CONTACT_NAME } from "@/lib/constants"
 import { images } from "@/lib/images"
 

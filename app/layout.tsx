@@ -1,3 +1,12 @@
+/**
+ * app/layout.tsx
+ *
+ * Author: Anna Glass
+ * Created: 11/21/2025
+ *
+ * Right Hand, 2025. All rights reserved.
+ */
+
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
@@ -25,6 +34,10 @@ export const metadata: Metadata = {
   description: "Onboarding for Right Hand",
 };
 
+/**
+ * RootLayout
+ * root layout with fonts and global styles.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
