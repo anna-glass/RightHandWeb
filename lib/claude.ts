@@ -42,10 +42,12 @@ export async function getClaudeResponse(
   maxIterations: number = 10
 ): Promise<string> {
   let iterations = 0
+  console.log(`🌲 tools available:`, tools.map(t => t.name).join(', '))
 
   while (iterations < maxIterations) {
     iterations++
     console.log(`🌲 claude api call - iteration ${iterations}`)
+    console.log(`🌲 last 3 messages:`, JSON.stringify(messages.slice(-3), null, 2))
 
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -55,6 +57,7 @@ export async function getClaudeResponse(
       messages
     })
     console.log(`🌲 claude api response received - stop_reason: ${response.stop_reason}`)
+    console.log(`🌲 response content:`, JSON.stringify(response.content, null, 2))
 
     messages.push({ role: "assistant", content: response.content })
 
