@@ -100,7 +100,8 @@ export async function POST(req: NextRequest) {
         *,
         profiles!inner(
           id,
-          first_name
+          first_name,
+          city
         )
       `)
       .eq('id', digestId)
@@ -118,6 +119,7 @@ export async function POST(req: NextRequest) {
 
     const profile = digest.profiles
     const userName = profile.first_name || 'User'
+    const userCity = profile.city || null
 
     // Build frequency description for context
     const frequencyDesc = digest.frequency === 'daily' ? 'daily'
@@ -136,7 +138,8 @@ export async function POST(req: NextRequest) {
       userId,
       digestPrompt,
       timezone || digest.timezone,
-      userName
+      userName,
+      userCity
     )
 
     // Send via Blooio
@@ -172,11 +175,12 @@ async function generateDigestContent(
   userId: string,
   prompt: string,
   userTimezone: string,
-  userName: string
+  userName: string,
+  userCity: string | null
 ): Promise<string> {
   try {
-    console.log('🤖 Generating digest content:', { userId, prompt, userTimezone, userName })
-    const systemPrompt = getAuthenticatedSystemPrompt(userTimezone, userName)
+    console.log('🤖 Generating digest content:', { userId, prompt, userTimezone, userName, userCity })
+    const systemPrompt = getAuthenticatedSystemPrompt(userTimezone, userName, userCity)
 
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-5-20250929",
