@@ -129,7 +129,6 @@ const anthropic = new Anthropic({
 
 const qstash = new QstashClient({
   token: process.env.QSTASH_TOKEN!,
-  baseUrl: 'https://us1.qstash.upstash.io',
 })
 
 // Track which messages are currently being processed (prevent duplicate processing)
