@@ -114,7 +114,6 @@ export async function searchEmails(
         return {
           id: msg.id,
           threadId: msg.threadId,
-          link: `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`,
           from: getHeader('From'),
           to: getHeader('To'),
           subject: getHeader('Subject'),
@@ -405,8 +404,6 @@ export async function getRecentEmails(
 
         return {
           id: msg.id,
-          threadId: msg.threadId,
-          link: `https://mail.google.com/mail/u/0/#inbox/${msg.threadId}`,
           from: getHeader('From'),
           to: getHeader('To'),
           subject: getHeader('Subject'),
