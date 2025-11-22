@@ -40,11 +40,10 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [currentTime, setCurrentTime] = useState("")
+  const [currentTime, setCurrentTime] = useState(() => formatCurrentTime())
 
   // update time every minute
   useEffect(() => {
-    setCurrentTime(formatCurrentTime())
     const interval = setInterval(() => setCurrentTime(formatCurrentTime()), 60000)
     return () => clearInterval(interval)
   }, [])
