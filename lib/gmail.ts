@@ -6,6 +6,39 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Helper function to extract email body from Gmail message payload
+function extractEmailBody(payload: any): string {
+  // If the email has a simple body directly in the payload
+  if (payload.body?.data) {
+    return Buffer.from(payload.body.data, 'base64').toString('utf-8')
+  }
+
+  // If the email has parts (multipart email)
+  if (payload.parts) {
+    // Look for text/plain first, then text/html
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/plain' && part.body?.data) {
+        return Buffer.from(part.body.data, 'base64').toString('utf-8')
+      }
+    }
+    // If no text/plain, try text/html
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/html' && part.body?.data) {
+        return Buffer.from(part.body.data, 'base64').toString('utf-8')
+      }
+    }
+    // Check nested parts (for multipart/alternative inside multipart/mixed)
+    for (const part of payload.parts) {
+      if (part.parts) {
+        const nestedBody = extractEmailBody(part)
+        if (nestedBody) return nestedBody
+      }
+    }
+  }
+
+  return ''
+}
+
 // Get authenticated Gmail client for a user
 async function getGmailClient(userId: string) {
   // Fetch user's Google tokens from database
@@ -103,13 +136,14 @@ export async function searchEmails(
         const details = await gmail.users.messages.get({
           userId: 'me',
           id: msg.id!,
-          format: 'metadata',
-          metadataHeaders: ['From', 'To', 'Subject', 'Date', 'Message-ID'],
+          format: 'full',
         })
 
         const headers = details.data.payload?.headers || []
         const getHeader = (name: string) =>
           headers.find((h) => h.name === name)?.value || ''
+
+        const body = extractEmailBody(details.data.payload)
 
         return {
           id: msg.id,
@@ -119,7 +153,7 @@ export async function searchEmails(
           subject: getHeader('Subject'),
           date: getHeader('Date'),
           messageId: getHeader('Message-ID'),
-          snippet: details.data.snippet,
+          body: body,
         }
       })
     )
@@ -394,13 +428,14 @@ export async function getRecentEmails(
         const details = await gmail.users.messages.get({
           userId: 'me',
           id: msg.id!,
-          format: 'metadata',
-          metadataHeaders: ['From', 'To', 'Subject', 'Date'],
+          format: 'full',
         })
 
         const headers = details.data.payload?.headers || []
         const getHeader = (name: string) =>
           headers.find((h) => h.name === name)?.value || ''
+
+        const body = extractEmailBody(details.data.payload)
 
         return {
           id: msg.id,
@@ -408,7 +443,7 @@ export async function getRecentEmails(
           to: getHeader('To'),
           subject: getHeader('Subject'),
           date: getHeader('Date'),
-          snippet: details.data.snippet,
+          body: body,
         }
       })
     )
