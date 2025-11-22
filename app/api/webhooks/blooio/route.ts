@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Client as QstashClient } from '@upstash/qstash'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { insertMessage } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,18 +36,15 @@ export async function POST(request: NextRequest) {
     }
 
     // save message to db (blooio sends phone in E164 format)
-    const { error: insertError } = await supabaseAdmin
-      .from('imessages')
-      .insert({
-        event: eventType,
-        message_id: payload.message_id,
-        sender: payload.external_id,
-        text: payload.text,
-        attachments: payload.attachments,
-        protocol: payload.protocol,
-        device_id: payload.device_id,
-        profile_id: null,
-      })
+    const { error: insertError } = await insertMessage({
+      event: eventType,
+      message_id: payload.message_id,
+      sender: payload.external_id,
+      text: payload.text,
+      attachments: payload.attachments,
+      protocol: payload.protocol,
+      device_id: payload.device_id,
+    })
 
     // handle duplicate messages (blooio may retry)
     if (insertError) {

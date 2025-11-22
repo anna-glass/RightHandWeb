@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getClaudeResponse } from '@/lib/claude'
 import { getAuthenticatedSystemPrompt } from '@/lib/system-prompts'
 import { sendiMessage } from '@/lib/iMessage'
 import { generateMessageId } from '@/lib/helpers'
 import { AUTHENTICATED_TOOLS } from '@/lib/tools'
 import { verifyQStashRequest } from '@/lib/qstash'
+import { getDigestForSend, markDigestSent } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export const maxDuration = 60
 
 /**
  * POST /api/digests/send
- * called by qstash cron to send scheduled digests to users.
+ * Called by QStash cron to send scheduled digests to users.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -26,14 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing digestId or userId' }, { status: 400 })
     }
 
-    // fetch digest + user profile
-    const { data: digest, error: digestError } = await supabaseAdmin
-      .from('digests')
-      .select('*, profiles!inner(id, first_name, city)')
-      .eq('id', digestId)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single()
+    const { data: digest, error: digestError } = await getDigestForSend(digestId, userId)
 
     if (digestError || !digest) {
       return NextResponse.json({ error: 'Digest not found or inactive' }, { status: 404 })
@@ -54,13 +47,8 @@ export async function POST(req: NextRequest) {
       { userId, phoneNumber: digest.phone_number, userTimezone }
     )
 
-    // send sms and update last_sent_at
     await sendiMessage(digest.phone_number, digestContent, generateMessageId())
-
-    await supabaseAdmin
-      .from('digests')
-      .update({ last_sent_at: new Date().toISOString() })
-      .eq('id', digestId)
+    await markDigestSent(digestId)
 
     return NextResponse.json({ success: true })
   } catch {

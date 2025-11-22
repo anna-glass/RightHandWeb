@@ -1,0 +1,5 @@
+export const CONTACT_PHONE = "858-815-0020"
+export const CONTACT_NAME = "Right Hand"
+export const CONTACT_EMAIL = "contact@getrighthand.com"
+export const SUPPORT_EMAIL = "anna@getrighthand.com"
+export const GOOGLE_PERMISSIONS_URL = "https://myaccount.google.com/connections?filters=3,4&hl=en"

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getClaudeResponse, RATE_LIMIT_MESSAGE } from '@/lib/claude'
 import { getAuthenticatedSystemPrompt, getUnauthenticatedSystemPrompt } from '@/lib/system-prompts'
 import { sendiMessage, markAsRead, startTyping, stopTyping } from '@/lib/iMessage'
@@ -7,6 +6,7 @@ import { generateMessageId } from '@/lib/helpers'
 import { getTools } from '@/lib/tools'
 import { isRateLimited } from '@/lib/rate-limit'
 import { getConversationHistory } from '@/lib/conversation'
+import { getProfileByPhone, hasPendingVerification } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,23 +52,8 @@ async function processMessage(sender: string, text: string) {
     return
   }
 
-  // fetch user profile if they exist
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, timezone, first_name, last_name, city')
-    .eq('phone_number', sender)
-    .maybeSingle()
-
-  // check for pending signup if no profile
-  let hasPendingVerification = false
-  if (!profile) {
-    const { data: pendingVerification } = await supabaseAdmin
-      .from('pending_verifications')
-      .select('verification_token')
-      .eq('phone_number', sender)
-      .maybeSingle()
-    hasPendingVerification = !!pendingVerification
-  }
+  const profile = await getProfileByPhone(sender)
+  const pendingVerification = !profile && await hasPendingVerification(sender)
 
   const userId = profile?.id || null
   const userTimezone = profile?.timezone || 'America/Los_Angeles'
@@ -80,7 +65,7 @@ async function processMessage(sender: string, text: string) {
   const tools = getTools(!!userId)
   const systemPrompt = userId
     ? getAuthenticatedSystemPrompt(userTimezone, userName, userCity)
-    : getUnauthenticatedSystemPrompt(sender, userTimezone, hasPendingVerification)
+    : getUnauthenticatedSystemPrompt(sender, userTimezone, pendingVerification)
 
   const response = await getClaudeResponse(
     systemPrompt,

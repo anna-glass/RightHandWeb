@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/browser"
 import { SyncLoader } from "react-spinners"
+import { images } from "@/lib/images"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -93,7 +94,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         <div className="flex flex-col items-center">
           <Image
-            src="/whitelogo.png"
+            src={images.logo.light}
             alt="Right Hand"
             width={360}
             height={360}

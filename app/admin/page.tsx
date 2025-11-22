@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { Search, Plus } from "lucide-react"
 import { SyncLoader } from "react-spinners"
+import { images } from "@/lib/images"
 
 interface UserProfile {
   id: string
@@ -54,7 +55,7 @@ export default function AdminPage() {
   // Preload images
   React.useEffect(() => {
     let loadedCount = 0
-    const imagesToLoad = ['/homebackground.png', '/whitelogo.png']
+    const imagesToLoad = [images.backgrounds.home, images.logo.light]
 
     const checkAllLoaded = () => {
       loadedCount++
@@ -288,7 +289,7 @@ export default function AdminPage() {
   return (
     <div
       className="relative flex flex-col h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: 'url(/homebackground.png)' }}
+      style={{ backgroundImage: `url(${images.backgrounds.home})` }}
     >
       {/* Dark overlay with blur */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0"></div>
@@ -299,7 +300,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-8">
           <div className="w-24 h-6 flex-shrink-0">
             <Image
-              src="/whitelogo.png"
+              src={images.logo.light}
               alt="Right Hand"
               width={96}
               height={96}

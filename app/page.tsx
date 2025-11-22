@@ -7,30 +7,22 @@ import { SyncLoader } from "react-spinners"
 
 export default function Home() {
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
-    const redirectUser = async () => {
+    async function redirect() {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
-        // Not authenticated - redirect to signin
         router.replace('/signin')
-        return
-      }
-
-      // Check if admin user
-      if (user.email?.endsWith('@getrighthand.com')) {
+      } else if (user.email?.endsWith('@getrighthand.com')) {
         router.replace('/admin')
-        return
+      } else {
+        router.replace('/home')
       }
-
-      // Regular authenticated user - redirect to home
-      router.replace('/home')
     }
-
-    redirectUser()
-  }, [router, supabase])
+    redirect()
+  }, [router])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black">

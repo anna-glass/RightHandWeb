@@ -10,27 +10,22 @@ interface UpdateProfileData {
   avatar_url?: string
 }
 
+/** Updates the current user's profile. */
 export async function updateProfile(data: UpdateProfileData) {
   try {
     const supabase = await createClient()
 
-    // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-
     if (userError || !user) {
       return { success: false, error: 'Not authenticated' }
     }
 
-    // Ensure phone number is in E.164 format for Blooio
-    const formattedPhone = formatPhoneNumberE164(data.phone_number)
-
-    // Update the profile
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
         first_name: data.first_name,
         last_name: data.last_name,
-        phone_number: formattedPhone,
+        phone_number: formatPhoneNumberE164(data.phone_number),
         avatar_url: data.avatar_url || null,
         updated_at: new Date().toISOString()
       })

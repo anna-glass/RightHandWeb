@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
 import { sendiMessage } from '@/lib/iMessage'
 import { generateMessageId } from '@/lib/helpers'
 import { verifyQStashRequest } from '@/lib/qstash'
+import { markReminderSent } from '@/lib/db'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/reminders/callback
- * called by qstash to send a scheduled reminder to user.
+ * Called by QStash to send a scheduled reminder to user.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -21,10 +21,7 @@ export async function POST(req: NextRequest) {
     await sendiMessage(phoneNumber, intent, generateMessageId())
 
     if (reminderId && reminderId !== 'TEMP_ID') {
-      await supabaseAdmin
-        .from('reminders')
-        .update({ is_sent: true, sent_at: new Date().toISOString() })
-        .eq('id', reminderId)
+      await markReminderSent(reminderId)
     }
 
     return NextResponse.json({ success: true })
