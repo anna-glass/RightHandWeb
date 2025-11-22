@@ -1,0 +1,103 @@
+import {
+  handleGetCalendarEvents,
+  handleCreateCalendarEvent,
+  handleUpdateCalendarEvent,
+  handleDeleteCalendarEvent
+} from './calendar'
+import {
+  handleCreateEmailDraft,
+  handleSendPendingDraft,
+  handleUpdatePendingDraft
+} from './email'
+import {
+  handleCreateReminder,
+  handleListReminders,
+  handleCancelReminder
+} from './reminders'
+import {
+  handleCreateDigest,
+  handleListDigests,
+  handleDeleteDigest
+} from './digests'
+import { handleWebSearch } from './search'
+import { handleSendSignupLink } from './signup'
+import {
+  SignupLinkInput,
+  CalendarEventsInput,
+  CreateCalendarEventInput,
+  UpdateCalendarEventInput,
+  DeleteCalendarEventInput,
+  CreateEmailDraftInput,
+  SendPendingDraftInput,
+  UpdatePendingDraftInput,
+  CreateReminderInput,
+  CancelReminderInput,
+  CreateDigestInput,
+  DeleteDigestInput,
+  WebSearchInput,
+  ToolResult
+} from '@/lib/tools'
+
+export interface ToolContext {
+  userId: string | null
+  phoneNumber: string
+  userTimezone: string
+}
+
+export async function executeToolCall(
+  toolName: string,
+  input: unknown,
+  ctx: ToolContext
+): Promise<ToolResult> {
+  const { userId, phoneNumber, userTimezone } = ctx
+
+  switch (toolName) {
+    case 'send_signup_link':
+      return handleSendSignupLink(input as SignupLinkInput)
+
+    case 'get_calendar_events':
+      return handleGetCalendarEvents(userId!, input as CalendarEventsInput)
+
+    case 'create_calendar_event':
+      return handleCreateCalendarEvent(userId!, input as CreateCalendarEventInput)
+
+    case 'update_calendar_event':
+      return handleUpdateCalendarEvent(userId!, input as UpdateCalendarEventInput)
+
+    case 'delete_calendar_event':
+      return handleDeleteCalendarEvent(userId!, input as DeleteCalendarEventInput)
+
+    case 'create_email_draft':
+      return handleCreateEmailDraft(userId!, input as CreateEmailDraftInput)
+
+    case 'send_pending_draft':
+      return handleSendPendingDraft(userId!, input as SendPendingDraftInput)
+
+    case 'update_pending_draft':
+      return handleUpdatePendingDraft(userId!, input as UpdatePendingDraftInput)
+
+    case 'create_reminder':
+      return handleCreateReminder(userId!, phoneNumber, userTimezone, input as CreateReminderInput)
+
+    case 'list_reminders':
+      return handleListReminders(userId!)
+
+    case 'cancel_reminder':
+      return handleCancelReminder(userId!, input as CancelReminderInput)
+
+    case 'create_digest':
+      return handleCreateDigest(userId!, phoneNumber, input as CreateDigestInput)
+
+    case 'list_digests':
+      return handleListDigests(userId!)
+
+    case 'delete_digest':
+      return handleDeleteDigest(userId!, input as DeleteDigestInput)
+
+    case 'web_search':
+      return handleWebSearch(input as WebSearchInput)
+
+    default:
+      return { error: `unknown tool: ${toolName}` }
+  }
+}

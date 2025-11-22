@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { ArrowRight, ArrowLeft } from "lucide-react"
 import { Suspense } from "react"
-import { formatPhoneNumberE164 } from "@/lib/phone-utils"
 
 function VerifyContent() {
   const router = useRouter()
@@ -212,15 +211,12 @@ function VerifyContent() {
         // Get user's timezone from browser
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-        // Ensure phone number is in E.164 format for Blooio
-        const formattedPhone = formatPhoneNumberE164(pendingVerification.phone_number)
-
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
             email: user.email || '',
-            phone_number: formattedPhone,
+            phone_number: pendingVerification.phone_number,
             verified: true,
             google_calendar_token: session.provider_token,
             google_refresh_token: session.provider_refresh_token || null,
@@ -242,7 +238,7 @@ function VerifyContent() {
         const { error: linkError } = await supabase
           .from('imessages')
           .update({ profile_id: user.id })
-          .eq('sender', formattedPhone)
+          .eq('sender', pendingVerification.phone_number)
           .is('profile_id', null)
 
         if (linkError) {
