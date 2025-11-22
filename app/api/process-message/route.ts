@@ -53,16 +53,22 @@ export async function POST(req: NextRequest) {
 
 /** Handles the full message flow: rate limit check, claude response, sms reply. */
 async function processMessage(sender: string, text: string) {
+  console.log(`🌲 message received from ${sender}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`)
+
   await Promise.all([markAsRead(sender), startTyping(sender)])
+  console.log(`🌲 marked as read and started typing`)
 
   if (await isRateLimited(sender)) {
+    console.log(`🌲 rate limited, aborting`)
     await stopTyping(sender)
     await sendiMessage(sender, RATE_LIMIT_MESSAGE, generateMessageId())
     return
   }
+  console.log(`🌲 rate limit check passed`)
 
   const profile = await getProfileByPhone(sender)
   const pendingVerification = !profile && await hasPendingVerification(sender)
+  console.log(`🌲 profile lookup complete - authenticated: ${!!profile}`)
 
   const userId = profile?.id || null
   const userTimezone = profile?.timezone || 'America/Los_Angeles'
@@ -71,21 +77,28 @@ async function processMessage(sender: string, text: string) {
 
   // build claude context based on auth state
   const messages = await getConversationHistory(sender, text)
+  console.log(`🌲 conversation history fetched - ${messages.length} messages`)
+
   const tools = getTools(!!userId)
   const systemPrompt = userId
     ? getAuthenticatedSystemPrompt(userTimezone, userName, userCity)
     : getUnauthenticatedSystemPrompt(sender, userTimezone, pendingVerification)
 
+  console.log(`🌲 calling claude with ${tools.length} tools available`)
   const response = await getClaudeResponse(
     systemPrompt,
     messages,
     tools,
     { userId, phoneNumber: sender, userTimezone }
   )
+  console.log(`🌲 claude response complete`)
 
   await stopTyping(sender)
 
   try {
     await sendiMessage(sender, response, generateMessageId())
+    console.log(`🌲 message sent`)
   } catch {}
+
+  console.log(`🌲 message processing complete`)
 }

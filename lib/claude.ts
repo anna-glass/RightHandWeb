@@ -45,6 +45,7 @@ export async function getClaudeResponse(
 
   while (iterations < maxIterations) {
     iterations++
+    console.log(`🌲 claude api call - iteration ${iterations}`)
 
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -53,16 +54,20 @@ export async function getClaudeResponse(
       tools,
       messages
     })
+    console.log(`🌲 claude api response received - stop_reason: ${response.stop_reason}`)
 
     messages.push({ role: "assistant", content: response.content })
 
     if (response.stop_reason === "tool_use") {
       const toolCalls = getToolCalls(response.content)
+      console.log(`🌲 tool calls requested: ${toolCalls.map(t => t.name).join(', ')}`)
 
       const toolResults = await Promise.all(
         toolCalls.map(async (toolUse) => {
+          console.log(`🌲 executing tool: ${toolUse.name}`, JSON.stringify(toolUse.input))
           try {
             const result = await executeToolCall(toolUse.name, toolUse.input, ctx)
+            console.log(`🌲 tool ${toolUse.name} completed`, JSON.stringify(result))
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -70,6 +75,7 @@ export async function getClaudeResponse(
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error)
+            console.log(`🌲 tool ${toolUse.name} errored: ${errorMessage}`)
             return {
               type: "tool_result" as const,
               tool_use_id: toolUse.id,
@@ -82,12 +88,15 @@ export async function getClaudeResponse(
 
       messages.push({ role: "user", content: toolResults })
     } else if (response.stop_reason === "end_turn") {
+      console.log(`🌲 claude loop complete - ${iterations} iteration(s)`)
       return extractText(response.content) || FALLBACK_RESPONSE
     } else {
+      console.log(`🌲 unexpected stop_reason: ${response.stop_reason}, breaking loop`)
       break
     }
   }
 
+  console.log(`🌲 claude loop ended after ${iterations} iterations`)
   const lastAssistantMessage = messages[messages.length - 1]
   if (lastAssistantMessage?.role === 'assistant' && Array.isArray(lastAssistantMessage.content)) {
     return extractText(lastAssistantMessage.content as Anthropic.ContentBlock[]) || FALLBACK_RESPONSE
