@@ -12,9 +12,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Initialize Qstash client for reliable background job processing
+// Initialize Qstash client for reliable background job processing (US West region)
 const qstash = new QstashClient({
   token: process.env.QSTASH_TOKEN!,
+  baseUrl: 'https://us1.qstash.upstash.io',
 })
 
 interface BlooioWebhookPayload {
