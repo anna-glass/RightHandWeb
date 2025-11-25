@@ -58,17 +58,6 @@ export interface CancelReminderInput {
   reminder_id: string
 }
 
-export interface CreateDigestInput {
-  prompt: string
-  time: string
-  frequency: 'hourly' | 'daily' | 'weekdays' | 'weekends' | 'monthly'
-  day_of_month?: number
-}
-
-export interface DeleteDigestInput {
-  digest_id: string
-}
-
 export interface WebSearchInput {
   query: string
 }
@@ -160,7 +149,7 @@ export const AUTHENTICATED_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "create_reminder",
-    description: "create a ONE-TIME reminder to notify the user at a specific time. use this for single reminders like 'remind me tomorrow at 5pm'. for RECURRING/REPEATING reminders (daily, weekly, etc), use create_digest instead.",
+    description: "create a reminder to notify the user at a specific time",
     input_schema: {
       type: "object",
       properties: {
@@ -188,40 +177,6 @@ export const AUTHENTICATED_TOOLS: Anthropic.Tool[] = [
         reminder_id: { type: "string", description: "id of the reminder to cancel (get from list_reminders)" }
       },
       required: ["reminder_id"]
-    }
-  },
-  {
-    name: "create_digest",
-    description: "create a recurring scheduled message. use for: 1) daily/weekly digests like 'show me my events every morning', 2) RECURRING REMINDERS like 'remind me to water plants every day at 9am' or 'remind me to take medicine every weekday'. this is the ONLY way to create recurring/repeating reminders - the regular create_reminder tool is for one-time only.",
-    input_schema: {
-      type: "object",
-      properties: {
-        prompt: { type: "string", description: "what to send - can be a digest request (e.g. 'show me all my events today') OR a recurring reminder (e.g. 'remind me to water my plants', 'take your vitamins!')" },
-        time: { type: "string", description: "time to send in 24-hour format HH:MM in user's timezone (e.g. '07:00', '14:30', '18:45')" },
-        frequency: { type: "string", description: "how often to send: 'hourly', 'daily', 'weekdays', 'weekends', or 'monthly'", enum: ["hourly", "daily", "weekdays", "weekends", "monthly"] },
-        day_of_month: { type: "number", description: "for monthly digests only: day of month (1-28). required if frequency is 'monthly'" }
-      },
-      required: ["prompt", "time", "frequency"]
-    }
-  },
-  {
-    name: "list_digests",
-    description: "list all active digests for the user. use when user asks what digests they have or wants to see their scheduled digests",
-    input_schema: {
-      type: "object",
-      properties: {},
-      required: []
-    }
-  },
-  {
-    name: "delete_digest",
-    description: "delete/cancel a digest. use when user wants to stop receiving a digest or cancel a scheduled digest",
-    input_schema: {
-      type: "object",
-      properties: {
-        digest_id: { type: "string", description: "id of the digest to delete (get from list_digests)" }
-      },
-      required: ["digest_id"]
     }
   },
   {

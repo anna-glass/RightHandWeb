@@ -19,11 +19,6 @@ import {
   handleListReminders,
   handleCancelReminder
 } from './reminders'
-import {
-  handleCreateDigest,
-  handleListDigests,
-  handleDeleteDigest
-} from './digests'
 import { handleWebSearch } from './search'
 import { handleSendSignupLink } from './signup'
 import { handleHumanRequest, handleListHumanRequests } from './human-requests'
@@ -36,8 +31,6 @@ import {
   SendEmailInput,
   CreateReminderInput,
   CancelReminderInput,
-  CreateDigestInput,
-  DeleteDigestInput,
   WebSearchInput,
   HumanRequestInput,
   ToolResult
@@ -87,15 +80,6 @@ export async function executeToolCall(
 
     case 'cancel_reminder':
       return handleCancelReminder(userId!, input as CancelReminderInput)
-
-    case 'create_digest':
-      return handleCreateDigest(userId!, phoneNumber, input as CreateDigestInput)
-
-    case 'list_digests':
-      return handleListDigests(userId!)
-
-    case 'delete_digest':
-      return handleDeleteDigest(userId!, input as DeleteDigestInput)
 
     case 'web_search':
       return handleWebSearch(input as WebSearchInput)

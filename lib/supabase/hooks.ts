@@ -24,8 +24,6 @@ type OnboardingResponse = Database['public']['Tables']['onboarding_responses']['
 // Profiles Hooks
 export function useProfiles() {
   const [profiles, setProfiles] = useState<Profile[]>([])
-  const [onboardedProfiles, setOnboardedProfiles] = useState<Profile[]>([])
-  const [pendingProfiles, setPendingProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -39,16 +37,7 @@ export function useProfiles() {
           .order('first_name', { ascending: true })
 
         if (error) throw error
-
-        const allProfiles = data || []
-        setProfiles(allProfiles)
-
-        // Split profiles into verified and unverified
-        const onboarded = allProfiles.filter(p => p.verified === true)
-        const pending = allProfiles.filter(p => p.verified !== true)
-
-        setOnboardedProfiles(onboarded)
-        setPendingProfiles(pending)
+        setProfiles(data || [])
       } catch (err) {
         setError(err as Error)
       } finally {
@@ -75,7 +64,7 @@ export function useProfiles() {
     }
   }, [])
 
-  return { profiles, onboardedProfiles, pendingProfiles, loading, error }
+  return { profiles, loading, error }
 }
 
 export function useProfile(id: string | null) {

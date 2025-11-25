@@ -36,7 +36,6 @@ export async function createProfileFromOAuth(
       id: user.id,
       email: user.email || '',
       phone_number: phoneNumber,
-      verified: true,
       google_calendar_token: session.provider_token,
       google_refresh_token: session.provider_refresh_token || null,
       avatar_url: user.user_metadata?.avatar_url || null,

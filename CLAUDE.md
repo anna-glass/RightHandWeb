@@ -1,6 +1,6 @@
 # RightHandWeb
 
-SMS-based AI personal assistant ("Right Hand") built with Next.js. Users interact via iMessage/SMS to manage calendar, email, reminders, and digests.
+SMS-based AI personal assistant ("Right Hand") built with Next.js. Users interact via iMessage/SMS to manage calendar, email, and reminders.
 
 ## Tech Stack
 
@@ -18,7 +18,6 @@ SMS-based AI personal assistant ("Right Hand") built with Next.js. Users interac
 app/
 ├── api/                  # API routes
 │   ├── process-message/  # Main SMS webhook handler
-│   ├── digests/send/     # Scheduled digest sender
 │   ├── reminders/callback/  # Qstash reminder callback
 │   └── webhooks/blooio/  # Blooio webhook
 ├── home/                 # Authenticated user dashboard
@@ -33,7 +32,6 @@ lib/
 │   ├── calendar.ts       # Google Calendar operations
 │   ├── email.ts          # Gmail operations
 │   ├── reminders.ts      # Reminder scheduling
-│   ├── digests.ts        # Digest scheduling
 │   └── search.ts         # Web search (Perplexity)
 ├── google-*.ts           # Google API integrations
 ├── supabase/             # Database clients
@@ -48,7 +46,7 @@ components/
 
 ### Claude Tool Architecture
 - Tool definitions in `lib/tools.ts`
-- Handlers in `lib/handlers/` (calendar, email, reminders, digests, search)
+- Handlers in `lib/handlers/` (calendar, email, reminders, search)
 - Dispatcher in `lib/handlers/index.ts`
 
 ### Message Flow
@@ -58,8 +56,7 @@ components/
 
 ### Database Tables (Supabase)
 - `profiles` - User data with Google tokens
-- `reminders` - One-time scheduled reminders
-- `digests` - Recurring digest schedules
+- `reminders` - Scheduled reminders
 - `pending_verifications` - Email verification tokens
 
 ## Environment Variables

@@ -139,30 +139,6 @@ export async function markReminderSent(reminderId: string) {
 }
 
 // ============================================================================
-// digests
-// ============================================================================
-
-/** Get digest with profile for sending. */
-export async function getDigestForSend(digestId: string, userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('digests')
-    .select('*, profiles!inner(id, first_name, city)')
-    .eq('id', digestId)
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .single()
-  return { data, error }
-}
-
-/** Update digest last_sent_at. */
-export async function markDigestSent(digestId: string) {
-  await supabaseAdmin
-    .from('digests')
-    .update({ last_sent_at: new Date().toISOString() })
-    .eq('id', digestId)
-}
-
-// ============================================================================
 // admin queries (client-side)
 // ============================================================================
 
