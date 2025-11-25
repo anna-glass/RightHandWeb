@@ -62,14 +62,3 @@ export async function createProfileFromOAuth(
 
   return { success: true }
 }
-
-/** triggers bounce animation on progress bar */
-export function animateProgressBar() {
-  const overlay = document.getElementById('progress-overlay')
-  if (overlay) {
-    overlay.classList.remove('animate-bounce-quick')
-    void overlay.offsetWidth // trigger reflow
-    overlay.classList.add('animate-bounce-quick')
-    setTimeout(() => overlay.classList.remove('animate-bounce-quick'), 500)
-  }
-}

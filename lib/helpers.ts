@@ -25,10 +25,6 @@ export function generateMessageId(): string {
   return randomString(21)
 }
 
-export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 export function getTimezoneOffset(timezone: string): string {
   const now = new Date()
   const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))

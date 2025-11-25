@@ -19,5 +19,3 @@ export const animations = `
     animation: bounce-scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 `
-
-export const navButtonClass = "gap-2 hover:bg-transparent hover:underline text-white hover:text-white"
