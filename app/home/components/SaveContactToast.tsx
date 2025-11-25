@@ -9,8 +9,6 @@
 
 "use client"
 
-import { strings } from "@/lib/strings"
-
 /**
  * SaveContactToast
  * clickable toast notification prompting users to save the contact.
@@ -29,7 +27,7 @@ export function SaveContactToast({ show, onClick }: { show: boolean; onClick: ()
         onClick={onClick}
       >
         <div className="bg-white text-black px-6 py-3 rounded-full shadow-lg border-2 border-gray-200 hover:bg-gray-50 transition-colors">
-          <p className="text-xs font-medium">Click to download Right Hand's contact</p>
+          <p className="text-xs font-medium">Click to download Right Hand&apos;s contact</p>
         </div>
       </div>
       <style jsx>{`

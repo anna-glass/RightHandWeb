@@ -8,8 +8,6 @@
  */
 
 import { Button } from "@/components/ui/button"
-import { typography } from "@/lib/typography"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface VerifySlideProps {

@@ -13,7 +13,7 @@ import { useState } from "react"
 import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Check, Clock, AlertCircle, X } from "lucide-react"
+import { Check, Clock, X } from "lucide-react"
 import type { HumanRequest, UserProfile } from "../types"
 
 interface HumanRequestsPanelProps {
