@@ -51,6 +51,8 @@ export const strings = {
     profile: {
       email: "email",
       mobile: "mobile",
+      plan: "plan",
+      planValue: "Right Hand Membership $129/mo",
       logout: "Logout",
       updatePermissions: "Update Permissions",
       manageSubscription: "Manage Subscription",

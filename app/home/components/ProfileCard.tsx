@@ -83,6 +83,10 @@ export function ProfileCard({
             <div className={`${styles.bubble} space-y-0.5`}>
               <p className={styles.label}>{strings.home.profile.email}</p>
               <p className={styles.value}>{profile.email}</p>
+              <div className={`${styles.divider} space-y-0.5`}>
+                <p className={styles.label}>{strings.home.profile.plan}</p>
+                <p className={styles.value}>{strings.home.profile.planValue}</p>
+              </div>
             </div>
           )}
 
