@@ -34,7 +34,7 @@ export function Tour2Slide({ onSignUp, loading, onPrevious }: Tour2SlideProps) {
           onClick={onSignUp}
           disabled={loading}
           size="sm"
-          className="w-fit bg-white text-black hover:bg-gray-100 font-normal rounded-full px-4 py-2 text-sm flex items-center gap-0"
+          className="w-fit bg-white text-black hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] font-normal rounded-full px-4 py-2 text-sm flex items-center gap-0 will-change-transform [backface-visibility:hidden]"
         >
           <svg
             width={16}

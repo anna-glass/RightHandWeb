@@ -49,7 +49,7 @@ export default function PaymentPage() {
             <Button
               onClick={handlePayment}
               size="lg"
-              className="w-full bg-white text-black hover:bg-gray-100 font-normal rounded-full py-6 text-base flex items-center justify-center gap-1.5"
+              className="w-full bg-white text-black hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] font-normal rounded-full py-6 text-base flex items-center justify-center gap-1.5 will-change-transform [backface-visibility:hidden]"
             >
               Continue with
               <Image

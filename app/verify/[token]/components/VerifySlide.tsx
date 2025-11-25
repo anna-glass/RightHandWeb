@@ -42,14 +42,14 @@ export function VerifySlide({ onContinue }: VerifySlideProps) {
         <Button
           onClick={onContinue}
           size="lg"
-          className="w-full bg-black text-white hover:bg-gray-900 font-normal rounded-full py-4 text-base"
+          className="w-full bg-black text-white hover:bg-black hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] font-normal rounded-full py-4 text-base will-change-transform [backface-visibility:hidden]"
         >
           Take a quick tour
         </Button>
         <Button
           onClick={onContinue}
           size="lg"
-          className="w-full bg-white text-black hover:bg-gray-100 font-normal rounded-full py-4 text-base flex items-center justify-center gap-2"
+          className="w-full bg-white text-black hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] font-normal rounded-full py-4 text-base flex items-center justify-center gap-2 will-change-transform [backface-visibility:hidden]"
         >
           <svg
             width={20}
