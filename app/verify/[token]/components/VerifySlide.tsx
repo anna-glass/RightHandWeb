@@ -1,5 +1,5 @@
 /**
- * app/verify/[token]/components/LandingSlide.tsx
+ * app/verify/[token]/components/VerifySlide.tsx
  *
  * Author: Anna Glass
  * Created: 11/24/2025
@@ -12,15 +12,15 @@ import { typography } from "@/lib/typography"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
-interface LandingSlideProps {
+interface VerifySlideProps {
   onContinue: () => void
 }
 
 /**
- * LandingSlide
- * initial landing page with logo and tagline.
+ * VerifySlide
+ * initial verification page with logo and tagline.
  */
-export function LandingSlide({ onContinue }: LandingSlideProps) {
+export function VerifySlide({ onContinue }: VerifySlideProps) {
   return (
     <div className="h-full flex flex-col items-center justify-between pb-8">
       <div className="flex-1 flex flex-col items-center justify-center">

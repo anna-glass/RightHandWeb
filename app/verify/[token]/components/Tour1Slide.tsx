@@ -1,5 +1,5 @@
 /**
- * app/verify/[token]/components/WelcomeSlide.tsx
+ * app/verify/[token]/components/Tour1Slide.tsx
  *
  * Author: Anna Glass
  * Created: 11/21/2025
@@ -9,16 +9,16 @@
 
 import Image from "next/image"
 
-interface WelcomeSlideProps {
+interface Tour1SlideProps {
   onContinue: () => void
   onPrevious: () => void
 }
 
 /**
- * WelcomeSlide
- * first onboarding slide with welcome message.
+ * Tour1Slide
+ * first tour slide.
  */
-export function WelcomeSlide({ onContinue, onPrevious }: WelcomeSlideProps) {
+export function Tour1Slide({ onContinue, onPrevious }: Tour1SlideProps) {
   return (
     <div className="h-full flex flex-col relative z-10">
       <div className="flex items-center justify-between mb-6">

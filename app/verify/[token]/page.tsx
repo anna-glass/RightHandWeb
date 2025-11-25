@@ -13,9 +13,9 @@ import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
 import { Suspense } from "react"
-import { LandingSlide } from "./components/LandingSlide"
-import { WelcomeSlide } from "./components/WelcomeSlide"
-import { PaymentSlide } from "./components/PaymentSlide"
+import { VerifySlide } from "./components/VerifySlide"
+import { Tour1Slide } from "./components/Tour1Slide"
+import { Tour2Slide } from "./components/Tour2Slide"
 import { animations } from "./styles"
 import { createProfileFromOAuth } from "./utils"
 import { strings } from "@/lib/strings"
@@ -89,7 +89,7 @@ function Content() {
         .maybeSingle()
 
       if (existingProfile) {
-        goToSlide(1)
+        router.push('/payment')
         return
       }
 
@@ -112,13 +112,13 @@ function Content() {
         return
       }
 
-      // cleanup and go to payment slide
+      // cleanup and redirect to payment
       await supabase
         .from('pending_verifications')
         .delete()
         .eq('verification_token', token)
 
-      goToSlide(1)
+      router.push('/payment')
     }
 
     handleOAuthCallback()
@@ -166,7 +166,7 @@ function Content() {
               />
               <div className="absolute inset-0 bg-black/30" />
               <div className="absolute inset-0 px-6 py-8">
-                <LandingSlide onContinue={() => goToSlide(0)} />
+                <VerifySlide onContinue={() => goToSlide(0)} />
               </div>
             </>
           )}
@@ -175,7 +175,7 @@ function Content() {
             <>
               <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
               <div className="absolute inset-0 px-6 py-8">
-                <WelcomeSlide onContinue={() => goToSlide(1)} onPrevious={() => goToSlide(-1)} />
+                <Tour1Slide onContinue={() => goToSlide(1)} onPrevious={() => goToSlide(-1)} />
               </div>
             </>
           )}
@@ -184,7 +184,7 @@ function Content() {
             <>
               <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
               <div className="absolute inset-0 px-6 py-8">
-                <PaymentSlide onSignUp={handleConnectGoogle} loading={loading} onPrevious={() => goToSlide(0)} />
+                <Tour2Slide onSignUp={handleConnectGoogle} loading={loading} onPrevious={() => goToSlide(0)} />
               </div>
             </>
           )}

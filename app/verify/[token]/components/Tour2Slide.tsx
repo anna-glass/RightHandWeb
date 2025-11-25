@@ -1,5 +1,5 @@
 /**
- * app/verify/[token]/components/PaymentSlide.tsx
+ * app/verify/[token]/components/Tour2Slide.tsx
  *
  * Author: Anna Glass
  * Created: 11/24/2025
@@ -10,17 +10,17 @@
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 
-interface PaymentSlideProps {
+interface Tour2SlideProps {
   onSignUp: () => void
   loading: boolean
   onPrevious: () => void
 }
 
 /**
- * PaymentSlide
- * stripe payment slide for onboarding.
+ * Tour2Slide
+ * second tour slide.
  */
-export function PaymentSlide({ onSignUp, loading, onPrevious }: PaymentSlideProps) {
+export function Tour2Slide({ onSignUp, loading, onPrevious }: Tour2SlideProps) {
   return (
     <div className="h-full flex flex-col relative z-10">
       <div className="flex items-start justify-between mb-6">
@@ -54,26 +54,26 @@ export function PaymentSlide({ onSignUp, loading, onPrevious }: PaymentSlideProp
         </Button>
       </div>
 
-      <div className="relative w-full h-[60%]">
-        <div className="absolute inset-0 px-8 overflow-hidden rounded-2xl">
-          <Image
-            src="/verifyscreen2.png"
-            alt="Payment"
-            fill
-            className="object-contain"
-            priority
-            unoptimized
-          />
-        </div>
-      </div>
+      <div className="flex-1" />
 
-      <div className="flex flex-col items-center -mt-4">
+      <div className="flex flex-col items-center mb-6">
         <h3 className="text-white text-center text-lg font-normal px-4">
           Your (real) assistant handles tasks that matter most.
         </h3>
       </div>
 
-      <div className="flex-1" />
+      <div className="relative w-full h-[70%] -mb-8">
+        <div className="absolute inset-0 px-8 overflow-hidden rounded-2xl">
+          <Image
+            src="/verifyscreen2.png"
+            alt="Payment"
+            fill
+            className="object-contain object-top"
+            priority
+            unoptimized
+          />
+        </div>
+      </div>
     </div>
   )
 }
