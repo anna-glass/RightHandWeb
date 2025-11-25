@@ -7,7 +7,7 @@
  * Right Hand, 2025. All rights reserved.
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import { Nunito } from "next/font/google";
@@ -32,6 +32,12 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Right Hand",
   description: "Onboarding for Right Hand",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 /**

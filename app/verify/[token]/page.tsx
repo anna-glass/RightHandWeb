@@ -11,17 +11,16 @@
 
 import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
-import { typography } from "@/lib/typography"
-import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/browser"
 import { Suspense } from "react"
+import { LandingSlide } from "./components/LandingSlide"
 import { WelcomeSlide } from "./components/WelcomeSlide"
-import { ConnectSlide } from "./components/ConnectSlide"
-import { ProgressBar } from "./components/ProgressBar"
+import { PaymentSlide } from "./components/PaymentSlide"
 import { animations } from "./styles"
-import { createProfileFromOAuth, animateProgressBar } from "./utils"
+import { createProfileFromOAuth } from "./utils"
 import { strings } from "@/lib/strings"
 import { connectGoogleAccount } from "@/lib/google-auth"
+import Image from "next/image"
 
 /**
  * VerifyPage
@@ -44,16 +43,20 @@ function Content() {
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
-  const [currentSlide, setCurrentSlide] = React.useState(0)
+  const [currentSlide, setCurrentSlide] = React.useState(-1) // -1 for landing, 0-1 for pages
   const [loading, setLoading] = React.useState(false)
   const [verificationToken, setVerificationToken] = React.useState<string | null>(null)
+
+  const goToSlide = React.useCallback((index: number) => {
+    setCurrentSlide(index)
+  }, [])
 
   // extract token and clear stale sessions
   React.useEffect(() => {
     const token = params.token as string
-    if (!token) return
+    setVerificationToken(token || 'preview')
 
-    setVerificationToken(token)
+    if (!token) return
 
     const clearStaleSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -86,7 +89,7 @@ function Content() {
         .maybeSingle()
 
       if (existingProfile) {
-        router.push('/home?onboarding=complete')
+        goToSlide(1)
         return
       }
 
@@ -109,24 +112,23 @@ function Content() {
         return
       }
 
-      // cleanup and redirect
+      // cleanup and go to payment slide
       await supabase
         .from('pending_verifications')
         .delete()
         .eq('verification_token', token)
 
-      router.push('/home?onboarding=complete')
+      goToSlide(1)
     }
 
     handleOAuthCallback()
-  }, [supabase, router, params])
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index)
-    animateProgressBar()
-  }
+  }, [supabase, router, params, goToSlide])
 
   const handleConnectGoogle = async () => {
+    if (verificationToken === 'preview') {
+      alert('Preview mode - Google OAuth disabled')
+      return
+    }
     setLoading(true)
     const { error } = await connectGoogleAccount(
       supabase,
@@ -141,29 +143,51 @@ function Content() {
   return (
     <>
       <style jsx>{animations}</style>
-      <div className="flex min-h-screen items-center justify-center p-8 bg-black">
-        <div className="w-full max-w-md space-y-16">
-          <div className="text-left">
-            <h1 className={cn(typography.h2, "text-white")}>{strings.verify.slides[currentSlide].title}</h1>
-          </div>
-
-          <ProgressBar
-            currentSlide={currentSlide}
-            totalSlides={strings.verify.slides.length}
-            onSlideClick={goToSlide}
-          />
-
-          <div className="h-[400px] min-h-[400px] max-h-[400px]">
-            {currentSlide === 0 ? (
-              <WelcomeSlide onNext={() => goToSlide(1)} />
-            ) : (
-              <ConnectSlide
-                onPrevious={() => goToSlide(0)}
-                onConnect={handleConnectGoogle}
-                loading={loading}
+      <div className="flex min-h-screen items-center justify-center bg-black p-6">
+        <div className="relative w-full max-w-sm aspect-[9/16] rounded-3xl overflow-hidden">
+          {currentSlide === -1 && (
+            <>
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                poster="/background.png"
+                className="absolute inset-0 w-full h-full object-cover"
+              >
+                <source src="/intro.mp4" type="video/mp4" />
+              </video>
+              <Image
+                src="/background.png"
+                alt="Background"
+                fill
+                className="object-cover -z-10"
+                priority
               />
-            )}
-          </div>
+              <div className="absolute inset-0 bg-black/30" />
+              <div className="absolute inset-0 px-6 py-8">
+                <LandingSlide onContinue={() => goToSlide(0)} />
+              </div>
+            </>
+          )}
+
+          {currentSlide === 0 && (
+            <>
+              <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
+              <div className="absolute inset-0 px-6 py-8">
+                <WelcomeSlide onContinue={() => goToSlide(1)} onPrevious={() => goToSlide(-1)} />
+              </div>
+            </>
+          )}
+
+          {currentSlide === 1 && (
+            <>
+              <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
+              <div className="absolute inset-0 px-6 py-8">
+                <PaymentSlide onSignUp={handleConnectGoogle} loading={loading} onPrevious={() => goToSlide(0)} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

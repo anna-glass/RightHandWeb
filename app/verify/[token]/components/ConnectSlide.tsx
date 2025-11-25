@@ -7,44 +7,31 @@
  * Right Hand, 2025. All rights reserved.
  */
 
-import { Button } from "@/components/ui/button"
-import { typography } from "@/lib/typography"
-import { cn } from "@/lib/utils"
-import { strings } from "@/lib/strings"
-import { ArrowLeft } from "lucide-react"
-import { GoogleButton } from "@/components/google-button"
-import { navButtonClass } from "../styles"
-
-interface ConnectSlideProps {
-  onPrevious: () => void
-  onConnect: () => void
-  loading: boolean
-}
+import Image from "next/image"
 
 /**
  * ConnectSlide
  * google oauth connection slide for onboarding.
  */
-export function ConnectSlide({ onPrevious, onConnect, loading }: ConnectSlideProps) {
+export function ConnectSlide() {
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1">
-        <div className="text-left space-y-12">
-          <p className={cn(typography.body, "text-white")}>
-            {strings.verify.connect.line1}
-          </p>
-          <p className={cn(typography.body, "text-white")}>
-            {strings.verify.connect.line2}
-          </p>
+    <div className="relative w-full aspect-[9/16] max-h-[420px] rounded-3xl overflow-hidden">
+      <Image
+        src="/flowers.png"
+        alt="Background"
+        fill
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-black/30" />
+      <div className="absolute inset-0 flex items-center justify-center p-6">
+        <div className="relative w-full h-full">
+          <Image
+            src="/flowermessages.png"
+            alt="Connect"
+            fill
+            className="object-contain"
+          />
         </div>
-      </div>
-
-      <div className="flex justify-between items-center">
-        <Button onClick={onPrevious} variant="ghost" size="lg" className={navButtonClass}>
-          <ArrowLeft className="w-5 h-5" />
-          {strings.verify.nav.previous}
-        </Button>
-        <GoogleButton onClick={onConnect} disabled={loading} size="sm" />
       </div>
     </div>
   )

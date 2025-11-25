@@ -10,8 +10,10 @@
 export const strings = {
   verify: {
     slides: [
-      { title: "Welcome to Right Hand" },
+      { title: "" },
+      { title: "" },
       { title: "Get Connected" },
+      { title: "Finalize Membership" },
     ],
     welcome: {
       line1: "For decades, executives have had assistants handling their life admin.",
@@ -20,6 +22,9 @@ export const strings = {
     connect: {
       line1: "Right Hand works best with access to your email and calendar.",
       line2: "You can adjust these permissions and settings at any time.",
+    },
+    payment: {
+      line1: "Right Hand is $129/mo. Continue with Stripe below to get access to the platform!",
     },
     nav: {
       next: "Next",
