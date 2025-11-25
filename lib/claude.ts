@@ -11,11 +11,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { executeToolCall, ToolContext } from '@/lib/handlers'
 
 export const MODEL = 'claude-sonnet-4-5-20250929'
-export const MAX_TOKENS = 75
+export const MAX_TOKENS = 4096
 
 // User-facing messages (for future localization)
 export const FALLBACK_RESPONSE = "weird error... try again?"
 export const RATE_LIMIT_MESSAGE = "idk how you did it, but you reached the message limit. chill out and try again later"
+export const TOKEN_LIMIT_MESSAGE = "ran out of space to think... can you rephrase that more simply?"
 
 export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!
@@ -93,6 +94,9 @@ export async function getClaudeResponse(
     } else if (response.stop_reason === "end_turn") {
       console.log(`🌲 claude loop complete - ${iterations} iteration(s)`)
       return extractText(response.content) || FALLBACK_RESPONSE
+    } else if (response.stop_reason === "max_tokens") {
+      console.log(`🌲 hit max_tokens limit`)
+      return TOKEN_LIMIT_MESSAGE
     } else {
       console.log(`🌲 unexpected stop_reason: ${response.stop_reason}, breaking loop`)
       break
