@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/download', '/signin']
+  const publicRoutes = ['/', '/download', '/signin', '/verify', '/payment/preview', '/home/preview']
   const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname.startsWith(route))
 
   // Redirect to home if not authenticated and trying to access protected route

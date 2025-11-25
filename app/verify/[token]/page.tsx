@@ -16,6 +16,7 @@ import { Suspense } from "react"
 import { VerifySlide } from "./components/VerifySlide"
 import { Tour1Slide } from "./components/Tour1Slide"
 import { Tour2Slide } from "./components/Tour2Slide"
+import { Tour3Slide } from "./components/Tour3Slide"
 import { animations } from "./styles"
 import { createProfileFromOAuth } from "./utils"
 import { strings } from "@/lib/strings"
@@ -43,7 +44,7 @@ function Content() {
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
-  const [currentSlide, setCurrentSlide] = React.useState(-1) // -1 for landing, 0-1 for pages
+  const [currentSlide, setCurrentSlide] = React.useState(-1) // -1 for landing, 0-2 for pages
   const [loading, setLoading] = React.useState(false)
   const [verificationToken, setVerificationToken] = React.useState<string | null>(null)
 
@@ -126,7 +127,7 @@ function Content() {
 
   const handleConnectGoogle = async () => {
     if (verificationToken === 'preview') {
-      alert('Preview mode - Google OAuth disabled')
+      router.push('/payment/preview')
       return
     }
     setLoading(true)
@@ -184,7 +185,16 @@ function Content() {
             <>
               <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
               <div className="absolute inset-0 px-6 py-8">
-                <Tour2Slide onSignUp={handleConnectGoogle} loading={loading} onPrevious={() => goToSlide(0)} />
+                <Tour2Slide onContinue={() => goToSlide(2)} onPrevious={() => goToSlide(0)} />
+              </div>
+            </>
+          )}
+
+          {currentSlide === 2 && (
+            <>
+              <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
+              <div className="absolute inset-0 px-6 py-8">
+                <Tour3Slide onSignUp={handleConnectGoogle} loading={loading} onPrevious={() => goToSlide(1)} />
               </div>
             </>
           )}

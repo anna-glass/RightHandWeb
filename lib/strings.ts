@@ -53,6 +53,7 @@ export const strings = {
       mobile: "mobile",
       logout: "Logout",
       updatePermissions: "Update Permissions",
+      manageSubscription: "Manage Subscription",
       support: "Support",
       defaultUser: "User",
       defaultAvatar: "?",

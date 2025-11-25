@@ -13,7 +13,7 @@ import { images } from "@/lib/images"
 export async function saveContact() {
   let photoBase64 = ''
   try {
-    const response = await fetch(images.logo.dark)
+    const response = await fetch(images.contact)
     const blob = await response.blob()
     const reader = new FileReader()
     photoBase64 = await new Promise((resolve) => {
@@ -29,11 +29,12 @@ export async function saveContact() {
 
   const vCard = `BEGIN:VCARD
 VERSION:3.0
-FN:${CONTACT_NAME}
+PRODID:-//Apple Inc.//macOS 26.1//EN
 N:;${CONTACT_NAME};;;
-ORG:${CONTACT_NAME}
-TEL;TYPE=CELL:${CONTACT_PHONE}${photoBase64 ? `
-PHOTO;ENCODING=b;TYPE=PNG:${photoBase64}` : ''}
+FN:${CONTACT_NAME}
+TEL;type=pref:+1 ${CONTACT_PHONE}
+${photoBase64 ? `PHOTO;ENCODING=b;TYPE=JPEG:${photoBase64}` : ''}
+NOTE:your personal assistant.
 END:VCARD`
 
   const vcardBlob = new Blob([vCard], { type: 'text/vcard' })

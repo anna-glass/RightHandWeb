@@ -15,4 +15,5 @@ export const images = {
   backgrounds: {
     home: "/homebackground.png",
   },
+  contact: "/contactphoto.png",
 }

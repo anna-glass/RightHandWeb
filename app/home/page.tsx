@@ -12,10 +12,8 @@
 import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
-import { images } from "@/lib/images"
 import { LoadingScreen } from "@/components/loading-screen"
 import { SaveContactToast } from "./components/SaveContactToast"
-import { ContactCard } from "./components/ContactCard"
 import { ProfileCard } from "./components/ProfileCard"
 import { saveContact } from "./utils"
 import type { Profile } from "./types"
@@ -36,21 +34,10 @@ function Content() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
-  const [imageLoaded, setImageLoaded] = useState(false)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [showContactCard, setShowContactCard] = useState(false)
   const [showToast, setShowToast] = useState(false)
-  const [isToastDismissing, setIsToastDismissing] = useState(false)
 
-  // preload background image
-  useEffect(() => {
-    const img = new window.Image()
-    img.src = images.backgrounds.home
-    img.onload = () => setImageLoaded(true)
-    img.onerror = () => setImageLoaded(true)
-  }, [])
-
-  // load user profile and trigger onboarding toast sequence
+  // load user profile and check for verification complete
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -70,19 +57,9 @@ function Content() {
 
         setProfile(profileData)
 
-        // show save contact card after onboarding
-        if (searchParams.get('onboarding') === 'complete') {
-          setShowContactCard(true)
-          setTimeout(() => {
-            setShowToast(true)
-            setTimeout(() => {
-              setIsToastDismissing(true)
-              setTimeout(() => {
-                setShowToast(false)
-                setIsToastDismissing(false)
-              }, 300)
-            }, 5000)
-          }, 2000)
+        // show toast if verification complete
+        if (searchParams.get('verification') === 'complete') {
+          setTimeout(() => setShowToast(true), 500)
         }
       } catch (error) {
         console.error('Error loading user data:', error)
@@ -95,7 +72,9 @@ function Content() {
 
   async function handleSaveContact() {
     await saveContact()
-    setShowContactCard(false)
+    setShowToast(false)
+    // remove verification query param from url
+    router.replace('/home')
   }
 
   async function handleLogout() {
@@ -103,18 +82,19 @@ function Content() {
     router.push('/')
   }
 
-  if (loading || !imageLoaded) {
+  if (loading) {
     return <LoadingScreen />
   }
 
   return (
     <>
-      <SaveContactToast show={showToast} isDismissing={isToastDismissing} />
-      {showContactCard && <ContactCard onSaveContact={handleSaveContact} />}
-      <div className="relative min-h-screen p-6 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${images.backgrounds.home})` }}>
-        {!showContactCard && <div className="absolute inset-0 bg-black/50 z-0"></div>}
-        <div className="relative max-w-sm mx-auto z-10 flex items-start justify-center pt-12 min-h-screen">
-          <ProfileCard profile={profile} onLogout={handleLogout} />
+      <SaveContactToast show={showToast} onClick={handleSaveContact} />
+      <div className="flex min-h-screen items-center justify-center bg-black p-6">
+        <div className="relative w-full max-w-sm aspect-[9/16] rounded-3xl overflow-hidden">
+          <div className="absolute inset-0" style={{ backgroundColor: '#22222140' }} />
+          <div className="absolute inset-0 px-6 py-8">
+            <ProfileCard profile={profile} onLogout={handleLogout} />
+          </div>
         </div>
       </div>
     </>
