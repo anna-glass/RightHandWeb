@@ -11,7 +11,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { executeToolCall, ToolContext } from '@/lib/handlers'
 
 export const MODEL = 'claude-sonnet-4-5-20250929'
-export const MAX_TOKENS = 2048
+export const MAX_TOKENS = 75
 
 // User-facing messages (for future localization)
 export const FALLBACK_RESPONSE = "weird error... try again?"
@@ -54,7 +54,7 @@ export async function getClaudeResponse(
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
       tools,
-      messages
+      messages,
     })
     console.log(`🌲 claude api response received - stop_reason: ${response.stop_reason}`)
     console.log(`🌲 response content:`, JSON.stringify(response.content, null, 2))

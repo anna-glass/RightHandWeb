@@ -26,6 +26,7 @@ import {
 } from './digests'
 import { handleWebSearch } from './search'
 import { handleSendSignupLink } from './signup'
+import { handleHumanRequest, handleListHumanRequests } from './human-requests'
 import {
   SignupLinkInput,
   CalendarEventsInput,
@@ -38,6 +39,7 @@ import {
   CreateDigestInput,
   DeleteDigestInput,
   WebSearchInput,
+  HumanRequestInput,
   ToolResult
 } from '@/lib/tools'
 
@@ -97,6 +99,12 @@ export async function executeToolCall(
 
     case 'web_search':
       return handleWebSearch(input as WebSearchInput)
+
+    case 'request_human_help':
+      return handleHumanRequest(userId!, phoneNumber, input as HumanRequestInput)
+
+    case 'list_human_requests':
+      return handleListHumanRequests(userId!)
 
     default:
       return { error: `unknown tool: ${toolName}` }

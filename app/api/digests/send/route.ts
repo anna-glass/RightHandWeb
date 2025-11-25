@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getClaudeResponse } from '@/lib/claude'
-import { getAuthenticatedSystemPrompt } from '@/lib/system-prompts'
+import { getSystemPrompt } from '@/lib/system-prompts'
 import { sendiMessage } from '@/lib/iMessage'
 import { generateMessageId } from '@/lib/helpers'
 import { AUTHENTICATED_TOOLS } from '@/lib/tools'
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
     // generate digest with claude
     const digestPrompt = `This is the user's scheduled ${digest.frequency} digest. The user asked for: "${digest.prompt}". Start your response with a brief greeting acknowledging this is their ${digest.frequency} update, then provide the info.`
-    const systemPrompt = getAuthenticatedSystemPrompt(userTimezone, userName, userCity)
+    const systemPrompt = getSystemPrompt(userTimezone, userName, userCity)
 
     const digestContent = await getClaudeResponse(
       systemPrompt,

@@ -73,6 +73,12 @@ export interface WebSearchInput {
   query: string
 }
 
+export interface HumanRequestInput {
+  request_type: 'reservation' | 'appointment' | 'payment' | 'other'
+  title: string
+  details: string
+}
+
 export interface ToolResult {
   success?: boolean
   error?: string
@@ -227,6 +233,32 @@ export const AUTHENTICATED_TOOLS: Anthropic.Tool[] = [
         query: { type: "string", description: "the search query (include location for local queries like weather)" }
       },
       required: ["query"]
+    }
+  },
+  {
+    name: "request_human_help",
+    description: "route a task to a human assistant for things you can't do directly like booking reservations, making appointments, paying parking tickets, or other tasks requiring human action. gather all necessary details from the user first (dates, times, preferences, confirmation numbers, etc), then use this tool to submit the request",
+    input_schema: {
+      type: "object",
+      properties: {
+        request_type: {
+          type: "string",
+          description: "type of request",
+          enum: ["reservation", "appointment", "payment", "other"]
+        },
+        title: { type: "string", description: "brief title summarizing the request (e.g. 'dinner reservation at carbone for saturday')" },
+        details: { type: "string", description: "all details needed to complete the request: dates, times, party size, preferences, confirmation numbers, contact info, any special instructions" }
+      },
+      required: ["request_type", "title", "details"]
+    }
+  },
+  {
+    name: "list_human_requests",
+    description: "list all human assistance requests (both pending and completed). use when user asks about status of requests you routed to a human",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: []
     }
   }
 ]

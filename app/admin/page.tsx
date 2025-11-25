@@ -19,9 +19,10 @@ import { ADMIN_EMAIL_DOMAIN } from "@/lib/constants"
 import { Toolbar } from "./components/Toolbar"
 import { UsersList } from "./components/UsersList"
 import { ChatPanel } from "./components/ChatPanel"
+import { HumanRequestsPanel } from "./components/HumanRequestsPanel"
 import { formatCurrentTime, filterUsers, handleRealtimeMessage } from "./utils"
 import { styles } from "./styles"
-import type { UserProfile, Message } from "./types"
+import type { UserProfile, Message, HumanRequest } from "./types"
 
 /**
  * AdminPage
@@ -41,6 +42,8 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime())
+  const [activeTab, setActiveTab] = useState<'messages' | 'requests'>('messages')
+  const [humanRequests, setHumanRequests] = useState<HumanRequest[]>([])
 
   // update time every minute
   useEffect(() => {
@@ -59,6 +62,15 @@ export default function AdminPage() {
     setMessages(data as Message[])
   }, [supabase])
 
+  // load human requests
+  const loadHumanRequests = useCallback(async () => {
+    const res = await fetch('/api/human-requests')
+    if (res.ok) {
+      const data = await res.json()
+      setHumanRequests(data.requests || [])
+    }
+  }, [])
+
   // load users list
   const loadUsers = useCallback(async () => {
     const { data: profiles, error } = await getAllProfiles(supabase)
@@ -76,8 +88,28 @@ export default function AdminPage() {
       await loadUserMessages(defaultUser.id)
     }
 
+    await loadHumanRequests()
     setContentReady(true)
-  }, [supabase, loadUserMessages])
+  }, [supabase, loadUserMessages, loadHumanRequests])
+
+  // human request handlers
+  const handleCompleteRequest = useCallback(async (requestId: string, notes?: string) => {
+    await fetch('/api/human-requests', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId, status: 'completed', notes, sendNotification: true })
+    })
+    await loadHumanRequests()
+  }, [loadHumanRequests])
+
+  const handleUpdateRequestStatus = useCallback(async (requestId: string, status: HumanRequest['status']) => {
+    await fetch('/api/human-requests', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId, status, sendNotification: false })
+    })
+    await loadHumanRequests()
+  }, [loadHumanRequests])
 
   // check auth and load data
   useEffect(() => {
@@ -124,6 +156,22 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(channel) }
   }, [selectedUser?.id, selectedUser?.phone_number, supabase])
 
+  // realtime human requests subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('human_requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'human_requests' },
+        () => { loadHumanRequests() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase, loadHumanRequests])
+
+  const pendingRequestsCount = humanRequests.filter(r => r.status === 'pending' || r.status === 'in_progress').length
+
   const filteredUsers = useMemo(() => filterUsers(users, searchQuery), [users, searchQuery])
 
   const handleUserSelect = (user: UserProfile) => {
@@ -146,14 +194,54 @@ export default function AdminPage() {
       <Toolbar currentTime={currentTime} onLogout={handleLogout} />
       <div className={styles.content}>
         <div className={styles.mainPanel}>
-          <UsersList
-            users={filteredUsers}
-            selectedUserId={selectedUser?.id || null}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onUserSelect={handleUserSelect}
-          />
-          <ChatPanel user={selectedUser} messages={messages} />
+          <div className="w-80 flex flex-col">
+            <div className="flex border-b border-gray-200 mb-2">
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                  activeTab === 'messages'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Messages
+              </button>
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors relative ${
+                  activeTab === 'requests'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Requests
+                {pendingRequestsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendingRequestsCount}
+                  </span>
+                )}
+              </button>
+            </div>
+            {activeTab === 'messages' && (
+              <UsersList
+                users={filteredUsers}
+                selectedUserId={selectedUser?.id || null}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onUserSelect={handleUserSelect}
+              />
+            )}
+          </div>
+          {activeTab === 'messages' ? (
+            <ChatPanel user={selectedUser} messages={messages} />
+          ) : (
+            <HumanRequestsPanel
+              requests={humanRequests}
+              users={users}
+              onComplete={handleCompleteRequest}
+              onUpdateStatus={handleUpdateRequestStatus}
+            />
+          )}
         </div>
       </div>
     </div>

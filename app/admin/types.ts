@@ -25,3 +25,18 @@ export interface Message {
   created_at?: string
   content?: string
 }
+
+export interface HumanRequest {
+  id: string
+  user_id: string
+  phone_number: string
+  request_type: 'reservation' | 'appointment' | 'payment' | 'other'
+  title: string
+  details: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  admin_notes?: string | null
+  created_at: string
+  updated_at: string
+  completed_at?: string | null
+  user?: UserProfile | null
+}
